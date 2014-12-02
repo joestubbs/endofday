@@ -2,6 +2,11 @@
 
 ARG=$1
 
-cd /endofday
-python /endofday/nf.py $STAGING/$ARG
-/nextflow run "${ARG%.*}.nf"
+if [ $ARG = "--setup" ]; then
+  cp /endofday/alias.sh /staging/endofday.sh
+  chmod +x /staging/endofday.sh
+else
+  cd /endofday
+  python /endofday/nf.py $STAGING/$ARG
+  /nextflow run "${ARG%.*}.nf"
+fi
