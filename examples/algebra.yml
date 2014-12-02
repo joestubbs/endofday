@@ -1,0 +1,42 @@
+# Simple example yaml declaration of a pipeline that implements \sum_x (5 + x)3 on an input file.
+
+# To run this example:
+# 0. Run setup on the endofday container if you haven't already (docker run -v $(pwd):/staging jstubbs/endofday
+# 1. Copy this file and input.txt to a directory and update the path to input.txt in the inputs section of the
+#    add_5 process.
+# 2. Run the pipline with: ./endofday.sh algebra.yml
+
+processes:
+    add_5:
+        image: jstubbs/add_n
+        description: Add 5 to all inputs.
+        volumes:
+            - /data
+        inputs:
+            - /home/jstubbs/input.txt:/data/input.txt
+        outputs:
+            - /data/output.txt
+        command: python add_n.py -i 5
+
+    mult_3:
+        image: jstubbs/mult_n
+        description: Multiply all inputs by 3.
+        volumes:
+            - /tmp
+        inputs:
+            - add_5/data/output.txt:/tmp/input
+        outputs:
+            - /tmp/output
+        command: python mult_n.py -f 3
+
+    sum:
+        image: jstubbs/sum
+        description: Sum all inputs.
+        volumes:
+            - /data
+        inputs:
+            - mult_3/tmp/output:/data/in.txt
+        outputs:
+            - /data/out.txt
+        command: python sum.py
+
