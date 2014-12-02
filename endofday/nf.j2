@@ -1,0 +1,33 @@
+{% for inp in inputs %}
+{{ inp.name }} = file("{{ inp.host_path }}")
+{% endfor %}
+
+{% for proc in processes %}
+
+process {{ proc.name }} {
+
+    {% if proc.inputs %}
+    input:
+    {% endif %}
+    {% for input in proc.inputs %}
+        file {{ input.var_id }} from {{ input.from }}
+    {% endfor %}
+
+    {% if proc.outputs %}
+    output:
+    {% endif %}
+    {% for output in proc.outputs %}
+        file "{{ output.host_path }}" into {{ output.name }}
+    {% endfor %}
+
+    """
+    {% for volume in proc.volumes %}
+    mkdir -p {{ volume.host_path }}
+    {% endfor %}
+
+    docker run {% for volume in proc.volumes %}-v {{ volume.docker_volume_path }}:{{ volume.container_path }} {% endfor %} {% for input in proc.inputs %}-v {{ input.docker_volume_path }}:{{ input.container_path }} {% endfor %} {{ proc.image }} {{ proc.command }}
+
+    """
+}
+
+{% endfor %}
