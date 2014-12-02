@@ -1,4 +1,3 @@
-## endofday ##
 
 Authors
 -------
