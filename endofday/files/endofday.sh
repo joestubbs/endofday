@@ -2,5 +2,6 @@
 
 ARG=$1
 
-python /endofday/nf.py $ARG
+cd /endofday
+python /endofday/nf.py $STAGING/$ARG
 /nextflow run "${ARG%.*}.nf"

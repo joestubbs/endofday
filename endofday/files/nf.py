@@ -10,7 +10,7 @@ from collections import OrderedDict
 import jinja2
 import yaml
 
-TEMPLATE = '/endofday/nf.j2'
+TEMPLATE = 'nf.j2'
 NEXTFLOW_BASE = os.environ.get('STAGING') or '/staging'
 HOST_BASE = os.environ.get('STAGING_DIR') or '/staging'
 
