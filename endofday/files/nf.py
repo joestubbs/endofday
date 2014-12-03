@@ -32,14 +32,14 @@ class Process(object):
     """
     Represents a nextflow process.
     """
-    def __init__(self, nf_base, host_base, name, desc, gloabl_outputs):
+    def __init__(self, nf_base, host_base, name, desc, gloabl_outputs, external_inputs):
         self.nf_base = nf_base
         self.host_base = host_base
         self.name = name
         self.image = desc.get('image')
         self.command = desc.get('command')
         self.outputs = self.set_outputs(desc.get('outputs'))
-        self.inputs = self.set_inputs(desc.get('inputs'), gloabl_outputs)
+        self.inputs = self.set_inputs(desc.get('inputs'), gloabl_outputs, external_inputs)
         self.volumes = self.set_volumes(desc.get('volumes'))
 
     def set_volumes(self, volumes_desc):
@@ -56,7 +56,7 @@ class Process(object):
             result.append(volume)
         return result
 
-    def set_inputs(self, inputs_desc, global_outputs):
+    def set_inputs(self, inputs_desc, global_outputs, external_inputs):
         """
         Return LOD of inputs for compiling j2 template. Each input needs:
             name
@@ -73,9 +73,13 @@ class Process(object):
             input['host_path'] = os.path.join(self.nf_base, paths[0])
             input['docker_volume_path'] = os.path.join(self.host_base, paths[0])
             input['container_path'] = paths[1]
-            if paths[0].startswith('/'):
-                # absolute paths refer to the host so use its own name for 'from':
+            if paths[0].startswith('inputs/'):
+                # refers to an external inputs, so use its own name for 'from':
                 input['from'] = input['name']
+                for x in external_inputs:
+                    if x['label'] == paths[0].split('inputs/')[1]:
+                        input['docker_volume_path'] = x['host_path']
+                        break
             else:
                 # relative paths refer to other processes so look up in outputs:
                 for out in global_outputs:
@@ -122,6 +126,17 @@ def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
         construct_mapping)
     return yaml.load(stream, OrderedLoader)
 
+def get_external_inputs(ext_inputs_dict):
+    result = []
+    for inp_str in ext_inputs_dict:
+        values = inp_str.split('<-')
+        if not len(values) == 2:
+            sys.exit("Invalid input:" + inp_str + ". Required format:<label> <- <path/to/file> ")
+        inp = {'label': values[0].strip(),
+               'host_path': values[1].strip()}
+        result.append(inp)
+    return result
+
 def get_outputs(nf_base, proc_dict):
     result = []
     for name, desc in proc_dict.items():
@@ -135,16 +150,24 @@ def get_outputs(nf_base, proc_dict):
         result.append(out)
     return result
 
-def get_inputs(proc_dict):
+def get_inputs(proc_dict, external_inputs):
     inputs = []
     for name, desc in proc_dict.items():
         inputs_desc = desc.get('inputs')
         for idx, input_desc in enumerate(inputs_desc):
             paths = input_desc.split(':')
             inp = {'name': name + '_input_' + str(idx)}
-            if paths[0].startswith('/'):
-                inp['host_path'] = paths[0]
-                inputs.append(inp)
+            if paths[0].startswith('inputs/'):
+                label = paths[0].split('inputs/')[1]
+                # look it up in external_inputs:
+                for x in external_inputs:
+                    if label == x['label']:
+                        inp['host_path'] = x['host_path']
+                        inputs.append(inp)
+                        break
+            # if paths[0].startswith('/'):
+            #     inp['host_path'] = paths[0]
+            #     inputs.append(inp)
     return inputs
 
 def parse_yaml(yaml_file, nf_base, host_base):
@@ -157,11 +180,13 @@ def parse_yaml(yaml_file, nf_base, host_base):
     proc_dict = src.get('processes')
     if not proc_dict:
         sys.exit("No processes defined.")
+    ext_inputs_dict = src.get('inputs')
+    external_inputs = get_external_inputs(ext_inputs_dict)
     outputs = get_outputs(nf_base, proc_dict)
-    inputs = get_inputs(proc_dict)
+    inputs = get_inputs(proc_dict, external_inputs)
     processes = []
     for name, desc in proc_dict.items():
-        process = Process(nf_base, host_base, name, desc, outputs)
+        process = Process(nf_base, host_base, name, desc, outputs, external_inputs)
         processes.append(process.to_dict())
     return processes, os.path.basename(path), inputs
 

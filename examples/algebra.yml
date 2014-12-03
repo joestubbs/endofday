@@ -7,6 +7,12 @@
 #    (docker run -v $(pwd):/staging jstubbs/endofday)
 # 3. Run the pipline with: ./endofday.sh algebra.yml
 
+inputs:
+    - input.txt <- /home/jstubbs/github-repos/endofday/examples/input.txt
+
+outputs:
+    - /data/out.txt
+
 processes:
     add_5:
         image: jstubbs/add_n
@@ -14,7 +20,7 @@ processes:
         volumes:
             - /data
         inputs:
-            - /home/jstubbs/input.txt:/data/input.txt
+            - inputs/input.txt:/data/input.txt
         outputs:
             - /data/output.txt
         command: python add_n.py -i 5
