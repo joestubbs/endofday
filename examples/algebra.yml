@@ -3,7 +3,7 @@
 # To run this example:
 # 1. Copy this file and input.txt to a directory and update the path to input.txt in the inputs stanza.
 # 2. Run setup on the endofday container for that directory if you haven't already
-#    (docker run -v $(pwd):/staging jstubbs/endofday)
+#    (docker run -v $(pwd):/staging jstubbs/endofday --setup)
 # 3. Run the pipline with: ./endofday.sh algebra.yml
 
 inputs:
