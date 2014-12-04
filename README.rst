@@ -50,7 +50,7 @@ represents it.  Each block shows an individual image and the files
 
    .. image:: endofday.png
       :align: center
-      :width: 90%
+      :width: 100%
 
 
 .. code-block:: yaml
