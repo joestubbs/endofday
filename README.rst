@@ -48,7 +48,7 @@ represents it.  Each block shows an individual image and the files
 
 .. sidebar:: Example
 
-   .. image:: endofday.svg
+   .. image:: endofday.png
       :align: center
       :width: 80%
 
