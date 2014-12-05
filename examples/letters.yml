@@ -1,0 +1,21 @@
+inputs:
+    - input <- /home/joe/github-repos/endofday/examples/letters
+
+outputs:
+    - /data/out
+
+processes:
+    split:
+        image: ubuntu
+        volumes:
+            - /data
+        inputs:
+            - inputs/input:/data/input
+        outputs:
+            - /data/output*
+        command: split -b 2 -d /data/input /data/output
+    cat:
+        image: ubuntu
+        inputs:
+            - split/data/output*:/input*
+        command: cat input*

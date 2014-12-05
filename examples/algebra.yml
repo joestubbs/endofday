@@ -7,42 +7,36 @@
 # 3. Run the pipline with: ./endofday.sh algebra.yml
 
 inputs:
-    - input.txt <- /home/jstubbs/github-repos/endofday/examples/input.txt
+    - input <- /home/jstubbs/github-repos/endofday/examples/input.txt
 
 outputs:
-    - /data/out.txt
+    - sum.output
 
 processes:
     add_5:
         image: jstubbs/add_n
         description: Add 5 to all inputs.
-        volumes:
-            - /data
         inputs:
-            - inputs/input.txt:/data/input.txt
+            - inputs.input -> /data/input.txt
         outputs:
-            - /data/output.txt
+            - /data/output.txt -> output
         command: python add_n.py -i 5
 
     mult_3:
         image: jstubbs/mult_n
         description: Multiply all inputs by 3.
-        volumes:
-            - /tmp
         inputs:
-            - add_5/data/output.txt:/tmp/input
+            - add_5.output -> /tmp/input
         outputs:
-            - /tmp/output
+            - /tmp/output -> output
         command: python mult_n.py -f 3
 
     sum:
         image: jstubbs/sum
         description: Sum all inputs.
-        volumes:
-            - /data
         inputs:
-            - mult_3/tmp/output:/data/in.txt
+            - mult_3.output -> /data/in.txt
         outputs:
-            - /data/out.txt
+            - /data/out.txt -> output
         command: python sum.py
 
