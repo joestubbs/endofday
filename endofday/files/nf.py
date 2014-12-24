@@ -102,6 +102,8 @@ class Process(object):
             if output_desc.startswith('/'):
                 output_desc = output_desc[1:]
             output['host_path'] = os.path.join(self.nf_base, self.name, output_desc)
+            if '*' in output['host_path']:
+                output['cmd'] = 'mode flatten'
             result.append(output)
         return result
 

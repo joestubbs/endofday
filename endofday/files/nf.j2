@@ -17,7 +17,7 @@ process {{ proc.name }} {
     output:
     {% endif %}
     {% for output in proc.outputs %}
-        file "{{ output.host_path }}" into {{ output.name }}
+        file '{{ output.host_path }}' into {{ output.name }} {{ output.cmd }}
     {% endfor %}
 
     """
