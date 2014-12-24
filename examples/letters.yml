@@ -1,3 +1,5 @@
+name: letters
+
 inputs:
     - input <- /home/joe/github-repos/endofday/examples/letters
 
@@ -7,15 +9,17 @@ outputs:
 processes:
     split:
         image: ubuntu
-        volumes:
-            - /data
         inputs:
-            - inputs/input:/data/input
+            - inputs.input -> /data/input
         outputs:
-            - /data/output*
+            - /data/output* -> output
         command: split -b 2 -d /data/input /data/output
     cat:
+        description: cat the contents of an input file to standard out.
         image: ubuntu
+        multiple: true
         inputs:
-            - split/data/output*:/input*
+            - split.output* -> /input*
         command: cat input*
+        outputs:
+            - /data/out

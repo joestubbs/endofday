@@ -39,4 +39,3 @@ processes:
         outputs:
             - /data/out.txt -> output
         command: python sum.py
-
