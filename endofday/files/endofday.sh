@@ -7,6 +7,6 @@ if [ $ARG = "--setup" ]; then
   chmod +x /staging/endofday.sh
 else
   cd /endofday
-  python /endofday/nf.py $STAGING/$ARG
+  python /endofday/tasks.py $STAGING/$ARG
   /nextflow run "${ARG%.*}.nf"
 fi
