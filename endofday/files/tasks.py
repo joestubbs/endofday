@@ -1,5 +1,6 @@
 import argparse
 import os
+import subprocess
 import sys
 
 from collections import OrderedDict
@@ -10,7 +11,7 @@ from doit.cmd_base import TaskLoader
 from doit.doit_cmd import DoitMain
 
 # working directory for endofday (todo - make this configurable).
-BASE = '/home/joe/endofday'
+BASE = '/home/joe/github-repos/endofday/endofday/files'
 
 # global tasks list to pass to the DockerLoader
 tasks = []
@@ -33,19 +34,15 @@ class GlobalInput(object):
 
     """
     def __init__(self, label, src):
-        self.label
+        self.label = label
         self.src = src
         # src and host_path are the same for GlobalInputs for now, but
         # for composition of workflows, in general a global input could be
         # the global output of another workflow, so we want to distinguish.
         # For composition, and in particular, for this, we'll need a mechanism
         # for referencing an external workflow object.
-        if not '.' in src:
-            self.host_path = src
-        else:
-            raise Error("References to external workflows not supported yet.")
-            # workflow, label = src.split('.')
-            # todo - need a way to resolve the workflow's label to a host path.
+        self.host_path = src
+        # todo - need a way to resolve the workflow's label to a host path.
 
 
 class Volume(object):
@@ -65,7 +62,8 @@ class TaskInput(object):
         self.src = src
         self.dest = dest
         if not len(src.split('.')) == 2:
-            raise Error('Invalid source for task resource: ' + str(src) + ' format is: <task>.<name>')
+            raise Error('Invalid source for task resource: ' + str(src)
+                        + ' format is: <task>.<name>')
         # the task name should either be 'inputs' to refer to a global input
         # or it should be the name of another task.
         self.src_task = self.src.split('.')[0]
@@ -76,28 +74,31 @@ class TaskOutput(object):
     """
     Represents a file output of a task within a workflow.
     """
-    def __init__(self, src, label, task_name):
+    def __init__(self, src, label, task_name, wf_name):
         self.src = src
         self.label = label
         self.task_name = task_name
-        self.host_path = os.path.join(BASE, self.task_name, self.src)
-        self.host_dir_path = self.get_host_dir_path()
+        # we assume container path is absolute -- if not, throw error for now
+        if not self.src.startswith('/'):
+            raise Error("Invalid output format - container paths must be absolute.")
+        self.host_path = os.path.join(BASE, wf_name, self.task_name, self.src[1:])
+        self.host_dir_path, self.container_dir_path = self.get_dir_paths()
 
-    def get_host_dir_path(self):
+    def get_dir_paths(self):
         """
         Determine path on the host corresponding to this output.
         """
         if self.host_path.endswith('/'):
-            self.host_dir_path=self.host_path
+            return self.host_path, self.src
         else:
             # mount the directory up one
-            self.host_dir_path=os.path.join(self.host_path, '..' )
+            return os.path.abspath(os.path.join(self.host_path, '..' )), os.path.abspath(os.path.join(self.src, '..' ))
 
 class Task(object):
     """
     Represents a pydoit task.
     """
-    def __init__(self, name, desc):
+    def __init__(self, name, desc, wf_name):
         """
         construct a task from a process definition yaml stanza.
         """
@@ -118,7 +119,7 @@ class Task(object):
         # the TaskInput objects
         self.get_inputs()
         # the TaskOutput objects
-        self.get_outputs()
+        self.get_outputs(wf_name)
         # the directories to mount for this task
         self.get_volume_dirs()
 
@@ -131,8 +132,10 @@ class Task(object):
         """
         def action_fn():
             for dir in self.volume_dirs:
-                os.makedirs(dir)
-            docker_cmd = "docker run"
+                if not os.path.exists(dir.host_path):
+                    print "creating: ", dir.host_path
+                    os.makedirs(dir.host_path)
+            docker_cmd = "docker run --rm"
             # order important here -- need to mount output dirs first so that
             # inputs overlay them.
             for volume in self.volume_dirs:
@@ -143,8 +146,10 @@ class Task(object):
             docker_cmd += ' ' + self.image
             # add the command:
             docker_cmd += ' ' + self.command
+            print "Task:", self.name, " docker cmd: ", docker_cmd
             # run the container in another process
-            os.popen(docker_cmd)
+            proc = subprocess.Popen(docker_cmd, shell=True)
+            proc.wait()
 
         self.action = action_fn
 
@@ -158,14 +163,14 @@ class Task(object):
             inp = TaskInput(src.strip(), dest.strip())
             self.inputs.append(inp)
 
-    def get_outputs(self):
+    def get_outputs(self, wf_name):
         self.outputs = []
         for out_desc in self.outputs_desc:
             if not len(out_desc.split('->')) == 2:
-                raise Error("Invalid input format in " + str(self.name) + ' process: ' + str(out_desc) +
+                raise Error("Invalid output format in " + str(self.name) + ' process: ' + str(out_desc) +
                             ' format is: <source> -> <destination>')
             src, dest = out_desc.split('->')
-            out = TaskOutput(src.strip(), dest.strip(), self.name)
+            out = TaskOutput(src.strip(), dest.strip(), self.name, wf_name)
             self.outputs.append(out)
 
     def get_volume_dirs(self):
@@ -178,22 +183,22 @@ class Task(object):
         we mount the directory itself. Note also that we may not need to mount
         anything if another output would mount the same or larger directory.
         """
-        self.volume_dirs = set
+        self.volume_dirs = []
         dirs_list = []
         for output in self.outputs:
             volume = Volume(host_path=output.host_dir_path,
-                            container_path=output.src)
+                            container_path=output.container_dir_path)
             dirs_list.append(volume)
-        dirs_list.sort()
+        dirs_list.sort(key= lambda vol:vol.container_path)
         # add volumes from dirs_list, removing extraneous ones
-        for path in dirs_list:
-            head, tail = os.path.split(path)
+        for volume in dirs_list:
+            head, tail = os.path.split(volume.container_path)
             while head and tail:
-                if head in self.volume_dirs:
+                if head in [volume.container_path for volume in self.volume_dirs]:
                     break
-                head, tail = os.path.split(path)
+                head, tail = os.path.split(head)
             else:
-                self.volume_dirs.add(path)
+                self.volume_dirs.append(volume)
 
     def get_input_volumes(self, global_inputs, tasks):
         """
@@ -203,6 +208,7 @@ class Task(object):
         """
         self.input_volumes = []
         for inp in self.inputs:
+            sources = []
             # if src task is 'inputs', it is a global input:
             if inp.src_task == 'inputs':
                 # look up the input in the global inputs.
@@ -213,7 +219,7 @@ class Task(object):
                     if task.name == inp.src_task:
                         sources = task.outputs
             if not sources:
-                raise Error("Input reference not found: " + str(inp.src.task))
+                raise Error("Input reference not found: " + str(inp.src_task))
 
             # iterate through the source list to find the matching resource:
             for source in sources:
@@ -223,22 +229,24 @@ class Task(object):
                     self.input_volumes.append(volume)
                     break
 
-    def doit_dict(self):
+    def get_doit_dict(self):
         """
         Returns a dictionary that can be used to generate a doit task.
         """
-        return {
+        file_deps = [volume.host_path for volume in self.input_volumes]
+        targets = [output.host_path for output in self.outputs]
+        self.doit_dict = {
             'name': self.name,
             'actions': [self.action],
             'doc': self.description,
-            'targets': [],
-            'file_dep': [],
+            'targets': targets,
+            'file_dep': file_deps,
         }
 
 class DockerLoader(TaskLoader):
     @staticmethod
     def load_tasks(cmd, opt_values, pos_args):
-        task_list = [dict_to_task(task.doit_dict()) for task in tasks]
+        task_list = [dict_to_task(task.doit_dict) for task in tasks]
         config = {'verbosity': 2}
         return task_list, config
 
@@ -306,7 +314,7 @@ class TaskFile(object):
         Creates a the task objects associated with the processes dictionary.
         """
         for name, src in self.proc_dict.items():
-            self.tasks.append(Task(name, src))
+            self.tasks.append(Task(name, src, self.name))
 
     def create_actions(self):
         """
@@ -315,23 +323,27 @@ class TaskFile(object):
         """
         for task in self.tasks:
             # the input volumes (file mounts)
-            task.get_input_volumes(self.glob_ins, self.tasks)
+            task.get_input_volumes(self.global_inputs, self.tasks)
             # the pydoit action associated with this task
             task.get_action()
-
+            task.get_doit_dict()
 
 def parse_yaml(yaml_file):
     task_file = TaskFile(yaml_file)
     task_file.create_glob_ins()
     task_file.create_tasks()
     task_file.create_actions()
+    return task_file
+
 
 def main(yaml_file):
     # parse yml file and add tasks to global 'tasks' variable
-    parse_yaml(yaml_file)
-    # todo
+    task_file = parse_yaml(yaml_file)
+    # load global tasks
+    for task in task_file.tasks:
+        tasks.append(task)
     # execute the doit engine.
-    sys.exit(DoitMain(DockerLoader()).run(sys.argv[1:]))
+    sys.exit(DoitMain(DockerLoader()).run(sys.argv[2:]))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Execute workflow of docker containers described in a yaml file.')
