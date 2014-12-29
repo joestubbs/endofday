@@ -10,8 +10,8 @@ from doit.task import dict_to_task
 from doit.cmd_base import TaskLoader
 from doit.doit_cmd import DoitMain
 
-# working directory for endofday (todo - make this configurable).
-BASE = '/home/joe/github-repos/endofday/endofday/files'
+# working directory for endofday
+BASE = os.environ.get('STAGING') or '/staging'
 
 # global tasks list to pass to the DockerLoader
 tasks = []
