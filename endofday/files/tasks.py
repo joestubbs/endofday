@@ -275,6 +275,7 @@ class TaskFile(object):
         self.path = os.path.join(os.getcwd(), yaml_file)
         self.basic_audits()
         self.get_top_level_objects()
+        self.top_level_audits()
         # the task objects associated with this workflow.
         self.tasks = []
 
@@ -296,6 +297,10 @@ class TaskFile(object):
             self.glob_ins = src.get('inputs')
             # the global outputs list:
             self.glob_outs = src.get('outputs')
+
+    def top_level_audits(self):
+        if not self.name:
+            raise Error("Invalid yaml syntax: global name required.")
 
     def create_glob_ins(self):
         """
