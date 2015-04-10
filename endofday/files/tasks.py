@@ -11,7 +11,16 @@ from doit.cmd_base import TaskLoader
 from doit.doit_cmd import DoitMain
 
 # working directory for endofday
-BASE = os.environ.get('STAGING') or '/staging'
+BASE = os.environ.get('STAGING_DIR') or '/staging'
+
+# base directory on the host; important when endofday is running in docker in which case gloabl paths in the
+# .yml file are
+HOST_BASE = os.environ.get('STAGING_DIR')
+
+# are we running in docker
+RUNNING_IN_DOCKER = False
+if os.environ.get('RUNNING_IN_DOCKER'):
+    RUNNING_IN_DOCKER = True
 
 # global tasks list to pass to the DockerLoader
 tasks = []
@@ -41,7 +50,7 @@ class GlobalInput(object):
         # the global output of another workflow, so we want to distinguish.
         # For composition, and in particular, for this, we'll need a mechanism
         # for referencing an external workflow object.
-        self.host_path = src
+        self.host_path = self.src
         # todo - need a way to resolve the workflow's label to a host path.
 
 
@@ -233,8 +242,13 @@ class Task(object):
         """
         Returns a dictionary that can be used to generate a doit task.
         """
-        file_deps = [volume.host_path for volume in self.input_volumes]
-        targets = [output.host_path for output in self.outputs]
+        if RUNNING_IN_DOCKER:
+            # pydoit paths need to refer to the endofday container if endofday is running in docker:
+            file_deps = [volume.host_path.replace(HOST_BASE, '/staging') for volume in self.input_volumes]
+            targets = [output.host_path.replace(HOST_BASE, '/staging') for output in self.outputs]
+        else:
+            file_deps = [volume.host_path for volume in self.input_volumes]
+            targets = [output.host_path for output in self.outputs]
         self.doit_dict = {
             'name': self.name,
             'actions': [self.action],
