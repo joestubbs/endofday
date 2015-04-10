@@ -6,6 +6,8 @@
 #    (docker run -v $(pwd):/staging jstubbs/endofday --setup)
 # 3. Run the pipline with: ./endofday.sh algebra.yml
 
+name: algebra
+
 inputs:
     - input <- /home/jstubbs/github-repos/endofday/examples/input.txt
 
