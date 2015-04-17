@@ -131,6 +131,19 @@ class Task(object):
         self.get_outputs(wf_name)
         # the directories to mount for this task
         self.get_volume_dirs()
+        # execution ('agave' or 'local', default is 'local')
+        self.execution = desc.get('execution') or 'local'
+
+    def audit(self):
+        """Run basic audits on a contstructed task. Work in progress."""
+        if not self.name:
+            raise Error("Name required for every task.")
+        if not self.image:
+            raise Error("No image specified for task: " + self.name)
+        if self.execution == 'agave' or self.execution == 'local':
+            pass
+        else:
+            raise Error("Invalid execution specified for task:" + self.name + ". Valid options are: local, agave.")
 
     def get_action(self):
         """
@@ -139,7 +152,10 @@ class Task(object):
         1) create directories on the host for each volume_dir
         2) execute the docker run statement
         """
-        def action_fn():
+        def get_command(image=self.image, command=self.command, envs=None):
+            """
+            Returns a docker run command for executing either the task image or the endofday cloud runner image.
+            """
             for dir in self.volume_dirs:
                 if not os.path.exists(dir.host_path):
                     print "creating: ", dir.host_path
@@ -151,16 +167,32 @@ class Task(object):
                 docker_cmd += " -v " + volume.host_path + ":" + volume.container_path
             for volume in self.input_volumes:
                 docker_cmd += " -v " + volume.host_path + ":" + volume.container_path
+            if envs:
+                for k,v in envs.items():
+                    docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
             # add the image:
-            docker_cmd += ' ' + self.image
+            docker_cmd += ' ' + image
             # add the command:
-            docker_cmd += ' ' + self.command
-            print "Task:", self.name, " docker cmd: ", docker_cmd
-            # run the container in another process
+            docker_cmd += ' ' + command
+            return docker_cmd
+
+        def local_action_fn():
+            docker_cmd = get_command()
             proc = subprocess.Popen(docker_cmd, shell=True)
             proc.wait()
 
-        self.action = action_fn
+        def agave_action_fn():
+            local_docker_cmd = get_command()
+            docker_cmd = get_command(image='eodcloud', command='submit', envs={'CMD':local_docker_cmd})
+            proc = subprocess.Popen(docker_cmd, shell=True)
+            proc.wait()
+
+
+
+        if self.execution == 'local':
+            self.action = local_action_fn
+        elif self.execution == 'agave':
+            self.action = agave_action_fn
 
     def get_inputs(self):
         self.inputs = []
@@ -333,7 +365,9 @@ class TaskFile(object):
         Creates a the task objects associated with the processes dictionary.
         """
         for name, src in self.proc_dict.items():
-            self.tasks.append(Task(name, src, self.name))
+            task = Task(name, src, self.name)
+            task.audit()
+            self.tasks.append(task)
 
     def create_actions(self):
         """
