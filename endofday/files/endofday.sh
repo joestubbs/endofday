@@ -8,5 +8,6 @@ if [ $ARG = "--setup" ]; then
 else
   cd /endofday
   python /endofday/tasks.py $STAGING/$ARG
-  /nextflow run "${ARG%.*}.nf"
+  # This used only for the nf backend
+#  /nextflow run "${ARG%.*}.nf"
 fi

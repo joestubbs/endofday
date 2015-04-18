@@ -11,7 +11,16 @@ from doit.cmd_base import TaskLoader
 from doit.doit_cmd import DoitMain
 
 # working directory for endofday
-BASE = os.environ.get('STAGING') or '/staging'
+BASE = os.environ.get('STAGING_DIR') or '/staging'
+
+# base directory on the host; important when endofday is running in docker in which case gloabl paths in the
+# .yml file are
+HOST_BASE = os.environ.get('STAGING_DIR')
+
+# are we running in docker
+RUNNING_IN_DOCKER = False
+if os.environ.get('RUNNING_IN_DOCKER'):
+    RUNNING_IN_DOCKER = True
 
 # global tasks list to pass to the DockerLoader
 tasks = []
@@ -41,7 +50,7 @@ class GlobalInput(object):
         # the global output of another workflow, so we want to distinguish.
         # For composition, and in particular, for this, we'll need a mechanism
         # for referencing an external workflow object.
-        self.host_path = src
+        self.host_path = self.src
         # todo - need a way to resolve the workflow's label to a host path.
 
 
@@ -122,6 +131,19 @@ class Task(object):
         self.get_outputs(wf_name)
         # the directories to mount for this task
         self.get_volume_dirs()
+        # execution ('agave' or 'local', default is 'local')
+        self.execution = desc.get('execution') or 'local'
+
+    def audit(self):
+        """Run basic audits on a contstructed task. Work in progress."""
+        if not self.name:
+            raise Error("Name required for every task.")
+        if not self.image:
+            raise Error("No image specified for task: " + self.name)
+        if self.execution == 'agave' or self.execution == 'local':
+            pass
+        else:
+            raise Error("Invalid execution specified for task:" + self.name + ". Valid options are: local, agave.")
 
     def get_action(self):
         """
@@ -130,7 +152,10 @@ class Task(object):
         1) create directories on the host for each volume_dir
         2) execute the docker run statement
         """
-        def action_fn():
+        def get_command(image=self.image, command=self.command, envs=None):
+            """
+            Returns a docker run command for executing either the task image or the endofday cloud runner image.
+            """
             for dir in self.volume_dirs:
                 if not os.path.exists(dir.host_path):
                     print "creating: ", dir.host_path
@@ -142,16 +167,32 @@ class Task(object):
                 docker_cmd += " -v " + volume.host_path + ":" + volume.container_path
             for volume in self.input_volumes:
                 docker_cmd += " -v " + volume.host_path + ":" + volume.container_path
+            if envs:
+                for k,v in envs.items():
+                    docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
             # add the image:
-            docker_cmd += ' ' + self.image
+            docker_cmd += ' ' + image
             # add the command:
-            docker_cmd += ' ' + self.command
-            print "Task:", self.name, " docker cmd: ", docker_cmd
-            # run the container in another process
+            docker_cmd += ' ' + command
+            return docker_cmd
+
+        def local_action_fn():
+            docker_cmd = get_command()
             proc = subprocess.Popen(docker_cmd, shell=True)
             proc.wait()
 
-        self.action = action_fn
+        def agave_action_fn():
+            local_docker_cmd = get_command()
+            docker_cmd = get_command(image='eodcloud', command='submit', envs={'CMD':local_docker_cmd})
+            proc = subprocess.Popen(docker_cmd, shell=True)
+            proc.wait()
+
+
+
+        if self.execution == 'local':
+            self.action = local_action_fn
+        elif self.execution == 'agave':
+            self.action = agave_action_fn
 
     def get_inputs(self):
         self.inputs = []
@@ -233,8 +274,13 @@ class Task(object):
         """
         Returns a dictionary that can be used to generate a doit task.
         """
-        file_deps = [volume.host_path for volume in self.input_volumes]
-        targets = [output.host_path for output in self.outputs]
+        if RUNNING_IN_DOCKER:
+            # pydoit paths need to refer to the endofday container if endofday is running in docker:
+            file_deps = [volume.host_path.replace(HOST_BASE, '/staging') for volume in self.input_volumes]
+            targets = [output.host_path.replace(HOST_BASE, '/staging') for output in self.outputs]
+        else:
+            file_deps = [volume.host_path for volume in self.input_volumes]
+            targets = [output.host_path for output in self.outputs]
         self.doit_dict = {
             'name': self.name,
             'actions': [self.action],
@@ -275,6 +321,7 @@ class TaskFile(object):
         self.path = os.path.join(os.getcwd(), yaml_file)
         self.basic_audits()
         self.get_top_level_objects()
+        self.top_level_audits()
         # the task objects associated with this workflow.
         self.tasks = []
 
@@ -297,6 +344,10 @@ class TaskFile(object):
             # the global outputs list:
             self.glob_outs = src.get('outputs')
 
+    def top_level_audits(self):
+        if not self.name:
+            raise Error("Invalid yaml syntax: global name required.")
+
     def create_glob_ins(self):
         """
         Create global input objects from the yaml source.
@@ -314,7 +365,9 @@ class TaskFile(object):
         Creates a the task objects associated with the processes dictionary.
         """
         for name, src in self.proc_dict.items():
-            self.tasks.append(Task(name, src, self.name))
+            task = Task(name, src, self.name)
+            task.audit()
+            self.tasks.append(task)
 
     def create_actions(self):
         """
