@@ -8,6 +8,9 @@ ADD nextflow.config /
 RUN apt-get install -y curl
 RUN curl -sSL https://get.docker.com/ubuntu/ | sudo sh
 
+# supply a default config
+ADD endofday.conf /endofday.conf
+
 ADD files /endofday
 RUN pip install -r /endofday/requirements.txt
 
