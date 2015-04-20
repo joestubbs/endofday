@@ -57,6 +57,9 @@ class AgaveExecutor(object):
         self.password = Config.get('agave', 'password')
         if not self.password:
             raise Error('Invalid config: password is required.')
+        self.client_name = Config.get('agave', 'client_name')
+        if not self.client_name:
+            raise Error('Invalid config: client_name is required.')
 
         # optional args:
         self.client_key = Config.get('agave', 'client_key')
