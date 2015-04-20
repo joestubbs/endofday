@@ -11,11 +11,11 @@ RUN curl -sSL https://get.docker.com/ubuntu/ | sudo sh
 # supply a default config
 ADD endofday.conf /endofday.conf
 
-ADD core /endofday
-RUN pip install -r /endofday/requirements.txt
+ADD core /core
+RUN pip install -r /core/requirements.txt
 
 ENV STAGING /staging
 ENV STAGING_DIR /staging
 # WORKDIR /staging
 
-ENTRYPOINT ["/endofday/endofday.sh"]
+ENTRYPOINT ["/core/endofday.sh"]
