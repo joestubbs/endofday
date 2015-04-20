@@ -10,6 +10,8 @@ from doit.task import dict_to_task
 from doit.cmd_base import TaskLoader
 from doit.doit_cmd import DoitMain
 
+from .error import Error
+
 # working directory for endofday
 BASE = os.environ.get('STAGING_DIR') or '/staging'
 
@@ -24,11 +26,6 @@ if os.environ.get('RUNNING_IN_DOCKER'):
 
 # global tasks list to pass to the DockerLoader
 tasks = []
-
-class Error(Exception):
-    def __init__(self, msg = None):
-        self.msg = msg
-        sys.exit(msg)
 
 
 class GlobalInput(object):
@@ -163,10 +160,14 @@ class Task(object):
             docker_cmd = "docker run --rm"
             # order important here -- need to mount output dirs first so that
             # inputs overlay them.
+            output_str = ''
             for volume in self.volume_dirs:
-                docker_cmd += " -v " + volume.host_path + ":" + volume.container_path
+                output_str += " -v " + volume.host_path + ":" + volume.container_path
+            docker_cmd += output_str
+            input_str = ''
             for volume in self.input_volumes:
-                docker_cmd += " -v " + volume.host_path + ":" + volume.container_path
+                input_str += " -v " + volume.host_path + ":" + volume.container_path
+            docker_cmd += input_str
             if envs:
                 for k,v in envs.items():
                     docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
@@ -174,15 +175,15 @@ class Task(object):
             docker_cmd += ' ' + image
             # add the command:
             docker_cmd += ' ' + command
-            return docker_cmd
+            return docker_cmd, output_str, input_str
 
         def local_action_fn():
-            docker_cmd = get_command()
+            docker_cmd, _, _ = get_command()
             proc = subprocess.Popen(docker_cmd, shell=True)
             proc.wait()
 
         def agave_action_fn():
-            local_docker_cmd = get_command()
+            local_docker_cmd, output_str, input_str = get_command()
             docker_cmd = get_command(image='eodcloud', command='submit', envs={'CMD':local_docker_cmd})
             proc = subprocess.Popen(docker_cmd, shell=True)
             proc.wait()
