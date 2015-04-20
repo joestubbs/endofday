@@ -2,3 +2,4 @@ Jinja2
 pyyaml
 doit
 agavepy
+pytest

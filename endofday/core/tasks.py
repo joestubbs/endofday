@@ -221,7 +221,7 @@ class Task(object):
         run time so that we have access to the outputs. Each volume consists of
         two paths: the path on the host and the path in the container. For each
         output, we create a volume to mount that is the immediate parent
-        directory containing the files unless it is a directory in which case
+        directory containing the core unless it is a directory in which case
         we mount the directory itself. Note also that we may not need to mount
         anything if another output would mount the same or larger directory.
         """

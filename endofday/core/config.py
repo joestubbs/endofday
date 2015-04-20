@@ -24,19 +24,11 @@ def read_config():
     return parser
 
 def audit_config():
-    platform = Config.get('execution', 'platform')
+    platform = Config.get('execution', 'execution')
     if not platform:
         raise Error('Invalid config - execution.platform is required.')
     if not platform == 'localhost' and not platform == 'agave':
         raise Error('Invalid config - execution.platform must be either "localhost" or "agave".')
-    if platform == 'localhost':
-        return None, None
-    # agave-specific audits
-    access_token = Config.get('agave', 'access_token')
-    if not access_token:
-        raise Error('agave.access_token is required for agave execution.')
-    refresh_token = Config.get('agave', 'refresh_token')
-    return access_token, refresh_token
 
 Config = read_config()
-access_token, refresh_token = audit_config()
+audit_config()
