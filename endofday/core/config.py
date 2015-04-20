@@ -27,8 +27,8 @@ def audit_config():
     platform = Config.get('execution', 'execution')
     if not platform:
         raise Error('Invalid config - execution.platform is required.')
-    if not platform == 'localhost' and not platform == 'agave':
-        raise Error('Invalid config - execution.platform must be either "localhost" or "agave".')
+    if not platform == 'local' and not platform == 'agave':
+        raise Error('Invalid config - execution.platform must be either "local" or "agave".')
 
 Config = read_config()
 audit_config()
