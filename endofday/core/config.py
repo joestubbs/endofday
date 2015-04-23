@@ -13,8 +13,15 @@ from .error import Error
 
 HERE = os.path.dirname(os.path.abspath((__file__)))
 
+class AgaveConfigParser(ConfigParser.ConfigParser):
+    def get(self, section, option, raw=False, vars=None, default_value=None):
+        try:
+            return ConfigParser.ConfigParser.get(self, section, option, raw, vars)
+        except ConfigParser.NoOptionError:
+            return default_value
+
 def read_config():
-    parser = ConfigParser.ConfigParser()
+    parser = AgaveConfigParser()
     places = [os.path.abspath(os.path.join(HERE, '../endofday.conf')),
               os.path.expanduser('/etc/endofday.conf'),
               '/endofday.conf']
