@@ -6,7 +6,7 @@ import requests
 import time
 
 from agavepy.agave import Agave
-
+from ConfigParser import NoOptionError
 from .error import Error
 from .config import Config
 
@@ -132,6 +132,8 @@ class AgaveExecutor(object):
             raise Error('Invalid config: username is required.')
         self.password = Config.get('agave', 'password')
         if not self.password:
+            self.password = os.environ.get('AGAVE_PASSWORD')
+        if not self.password:
             raise Error('Invalid config: password is required.')
         self.client_name = Config.get('agave', 'client_name')
         if not self.client_name:
@@ -140,6 +142,8 @@ class AgaveExecutor(object):
         # optional args:
         self.client_key = Config.get('agave', 'client_key')
         self.client_secret = Config.get('agave', 'client_secret')
+        if not self.client_secret:
+            self.client_secret = os.environ.get('AGAVE_CLIENT_SECRET')
         self.storage_system = Config.get('agave', 'storage_system')
         if not self.storage_system:
             self.storage_system = 'data.iplantcollaborative.org'
