@@ -22,6 +22,7 @@ class AgaveAsyncResponse(object):
         """
         self.ag = ag
         self.status = response.status
+        self.retries = 0
         self.url = response._links.get('history').get('href')
         if not self.url:
             raise Error("Error parsing response object: no URL detected. response: " + str(response))
@@ -31,8 +32,11 @@ class AgaveAsyncResponse(object):
     def _update_status(self):
         headers = {'Authorization': 'Bearer ' + self.ag.token.token_info.get('access_token')}
         rsp = requests.get(url=self.url, headers=headers)
+        if (rsp.status_code == 404 or rsp.status_code == 403) and self.retries < 10:
+            time.sleep(1.5)
+            self.retries += 1
+            return self._update_status()
         if not rsp.status_code == 200:
-            import pdb; pdb.set_trace()
             raise Error("Error updating status; invalid status code:  " + str(rsp.status_code) + str(rsp.content))
         result = rsp.json().get('result')
         if not result:
@@ -169,5 +173,4 @@ class AgaveExecutor(object):
         except Exception as e:
             raise Error("Upload to default storage failed - local_path: " + local_path +
                         "; remote_path: " + remote_path + "; Msg:" + str(e))
-        import pdb; pdb.set_trace()
         return AgaveAsyncResponse(self.ag, rsp)
