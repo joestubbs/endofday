@@ -53,6 +53,10 @@ def test_upload_file(ae):
     result = [r for r in rsp if r['name'] == 'sample_input.txt']
     assert len(result) > 0
 
+def test_download_file(ae):
+    rsp = ae.download_file(local_path=os.path.join(HERE,'sample_input.txt'), remote_path='algebra/add_5/data/sample_input.txt')
+    assert rsp.get('status') == 'success'
+
 
 
 
