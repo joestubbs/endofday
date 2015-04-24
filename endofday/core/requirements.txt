@@ -1,5 +1,5 @@
 Jinja2
 pyyaml
 doit
-agavepy
 pytest
+-e git+https://jstubbs@bitbucket.org/taccaci/agavepy.git#egg=agavepy
