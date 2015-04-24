@@ -10,7 +10,9 @@ from doit.task import dict_to_task
 from doit.cmd_base import TaskLoader
 from doit.doit_cmd import DoitMain
 
+from .config import Config
 from .error import Error
+from .executors import AgaveAsyncResponse, AgaveExecutor
 
 # working directory for endofday
 BASE = os.environ.get('STAGING_DIR') or '/staging'
@@ -39,7 +41,7 @@ class GlobalInput(object):
     input <- workflow1.output (and then we need to resolve this)
 
     """
-    def __init__(self, label, src):
+    def __init__(self, label, src, wf_name):
         self.label = label
         self.src = src
         # src and host_path are the same for GlobalInputs for now, but
@@ -49,14 +51,20 @@ class GlobalInput(object):
         # for referencing an external workflow object.
         self.host_path = self.src
         # todo - need a way to resolve the workflow's label to a host path.
+        self.eod_rel_path = os.path.join(wf_name, 'global_inputs', os.path.split(src)[1])
 
 
 class Volume(object):
     """
     Represents a volume mounted into a container for a task.
     """
-    def __init__(self, host_path, container_path):
+    def __init__(self, eod_rel_path, container_path, host_path=None):
+        self.eod_rel_path = eod_rel_path
+        # global inputs that reside on the local host need to pass their absolute paths, while for other
+        # volumes, the host_path can be derived from the eod_rel_path
         self.host_path = host_path
+        if not self.host_path:
+            self.host_path = os.path.join(BASE, eod_rel_path)
         self.container_path = container_path
 
 
@@ -87,18 +95,12 @@ class TaskOutput(object):
         # we assume container path is absolute -- if not, throw error for now
         if not self.src.startswith('/'):
             raise Error("Invalid output format - container paths must be absolute.")
-        self.host_path = os.path.join(BASE, wf_name, self.task_name, self.src[1:])
-        self.host_dir_path, self.container_dir_path = self.get_dir_paths()
+        self.eod_rel_path = os.path.join(wf_name, self.task_name, self.src[1:])
+        self.eod_rel_dir_path, _ = os.path.split(self.eod_rel_path)
+        self.host_path = os.path.join(BASE, self.eod_rel_path)
+        self.host_dir_path, _ = os.path.split(self.host_path)
+        self.container_dir_path, _ = os.path.split(self.src)
 
-    def get_dir_paths(self):
-        """
-        Determine path on the host corresponding to this output.
-        """
-        if self.host_path.endswith('/'):
-            return self.host_path, self.src
-        else:
-            # mount the directory up one
-            return os.path.abspath(os.path.join(self.host_path, '..' )), os.path.abspath(os.path.join(self.src, '..' ))
 
 class Task(object):
     """
@@ -130,6 +132,8 @@ class Task(object):
         self.get_volume_dirs()
         # execution ('agave' or 'local', default is 'local')
         self.execution = desc.get('execution') or 'local'
+        if self.execution == 'agave':
+            self.executor = AgaveExecutor(wf_name=wf_name)
 
     def audit(self):
         """Run basic audits on a contstructed task. Work in progress."""
@@ -142,58 +146,59 @@ class Task(object):
         else:
             raise Error("Invalid execution specified for task:" + self.name + ". Valid options are: local, agave.")
 
-    def get_action(self):
+    def get_docker_command(self, envs=None):
+        """
+        Returns a docker run command for executing either the task image or the endofday cloud runner image.
+        """
+        docker_cmd = "docker run --rm"
+        # order important here -- need to mount output dirs first so that
+        # inputs overlay them.
+        output_str = ''
+        for volume in self.volume_dirs:
+            output_str += " -v " + volume.host_path + ":" + volume.container_path
+        docker_cmd += output_str
+        input_str = ''
+        for volume in self.input_volumes:
+            input_str += " -v " + volume.host_path + ":" + volume.container_path
+        docker_cmd += input_str
+        if envs:
+            for k,v in envs.items():
+                docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
+        # add the image:
+        docker_cmd += ' ' + self.image
+        # add the command:
+        docker_cmd += ' ' + self.command
+        return docker_cmd, output_str, input_str
+
+
+    def get_action(self, executor=None):
         """
         The action for a task is the function that is actually called by
         pydoit to execute the task. It needs to do two things:
         1) create directories on the host for each volume_dir
         2) execute the docker run statement
         """
-        def get_command(image=self.image, command=self.command, envs=None):
-            """
-            Returns a docker run command for executing either the task image or the endofday cloud runner image.
-            """
+
+        def local_action_fn():
+            # first, create the directories locally
             for dir in self.volume_dirs:
                 if not os.path.exists(dir.host_path):
                     print "creating: ", dir.host_path
                     os.makedirs(dir.host_path)
-            docker_cmd = "docker run --rm"
-            # order important here -- need to mount output dirs first so that
-            # inputs overlay them.
-            output_str = ''
-            for volume in self.volume_dirs:
-                output_str += " -v " + volume.host_path + ":" + volume.container_path
-            docker_cmd += output_str
-            input_str = ''
-            for volume in self.input_volumes:
-                input_str += " -v " + volume.host_path + ":" + volume.container_path
-            docker_cmd += input_str
-            if envs:
-                for k,v in envs.items():
-                    docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
-            # add the image:
-            docker_cmd += ' ' + image
-            # add the command:
-            docker_cmd += ' ' + command
-            return docker_cmd, output_str, input_str
-
-        def local_action_fn():
-            docker_cmd, _, _ = get_command()
+            docker_cmd, _, _ = self.get_docker_command()
+            # now, execute the container
             proc = subprocess.Popen(docker_cmd, shell=True)
             proc.wait()
 
-        def agave_action_fn():
-            local_docker_cmd, output_str, input_str = get_command()
-            docker_cmd = get_command(image='eodcloud', command='submit', envs={'CMD':local_docker_cmd})
-            proc = subprocess.Popen(docker_cmd, shell=True)
-            proc.wait()
-
-
-
-        if self.execution == 'local':
+        # if the task instance has its own executor, use that:
+        if hasattr(self, 'executor'):
+            self.action = self.executor.get_action(self)
+        # otherwise, if we were passed a (global) executor, use that:
+        elif executor:
+            self.action = executor.get_action(self)
+        # otherwise, use the local action
+        else:
             self.action = local_action_fn
-        elif self.execution == 'agave':
-            self.action = agave_action_fn
 
     def get_inputs(self):
         self.inputs = []
@@ -228,7 +233,7 @@ class Task(object):
         self.volume_dirs = []
         dirs_list = []
         for output in self.outputs:
-            volume = Volume(host_path=output.host_dir_path,
+            volume = Volume(eod_rel_path=output.eod_rel_dir_path,
                             container_path=output.container_dir_path)
             dirs_list.append(volume)
         dirs_list.sort(key= lambda vol:vol.container_path)
@@ -251,6 +256,7 @@ class Task(object):
         self.input_volumes = []
         for inp in self.inputs:
             sources = []
+            host_path = None
             # if src task is 'inputs', it is a global input:
             if inp.src_task == 'inputs':
                 # look up the input in the global inputs.
@@ -266,10 +272,15 @@ class Task(object):
             # iterate through the source list to find the matching resource:
             for source in sources:
                 if source.label == inp.src_name:
-                    volume = Volume(host_path=source.host_path,
-                                    container_path=inp.dest)
+                    # for global inputs, we need to pass the host path
+                    if inp.src_task == 'inputs':
+                        host_path = source.host_path
+                    volume = Volume(eod_rel_path=source.eod_rel_path,
+                                    container_path=inp.dest, host_path=host_path)
                     self.input_volumes.append(volume)
                     break
+            else: # this is on for loop: if we did not break, we did not find the input
+                raise Error("Input reference not found: " + str(inp.src_task))
 
     def get_doit_dict(self):
         """
@@ -319,10 +330,19 @@ class TaskFile(object):
     workflow.
     """
     def __init__(self, yaml_file):
-        self.path = os.path.join(os.getcwd(), yaml_file)
+        if yaml_file[0] == '/':
+            self.path = yaml_file
+        else:
+            self.path = os.path.join(os.getcwd(), yaml_file)
         self.basic_audits()
         self.get_top_level_objects()
         self.top_level_audits()
+        self.executor = 'local'
+        # create an agave executor
+        if Config.get('execution', 'execution') == 'agave':
+            self.executor = 'agave'
+            self.ae = AgaveExecutor(wf_name=self.name)
+            self.ae.create_dir(path='global_inputs')
         # the task objects associated with this workflow.
         self.tasks = []
 
@@ -358,8 +378,7 @@ class TaskFile(object):
             if not len(inp_src.split('<-')) == 2:
                 raise Error("Invalid global input definition: " + str(inp_src))
             label, source = inp_src.split('<-')
-            self.global_inputs.append(GlobalInput(label.strip(),
-                                                  source.strip()))
+            self.global_inputs.append(GlobalInput(label.strip(), source.strip(), self.name))
 
     def create_tasks(self):
         """
@@ -379,7 +398,10 @@ class TaskFile(object):
             # the input volumes (file mounts)
             task.get_input_volumes(self.global_inputs, self.tasks)
             # the pydoit action associated with this task
-            task.get_action()
+            if self.executor == 'agave':
+                task.get_action(self.ae)
+            else:
+                task.get_action()
             task.get_doit_dict()
 
 def parse_yaml(yaml_file):
