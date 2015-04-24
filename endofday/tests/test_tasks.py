@@ -168,3 +168,13 @@ def test_mult_3_docker_command(task_file):
     task = task_file.tasks[1]
     cmd, _, _ = task.get_docker_command()
     assert cmd == 'docker run --rm -v /staging/test_wf/mult_3/tmp:/tmp -v /staging/test_wf/add_5/data/output.txt:/tmp/input jstubbs/mult_n python mult_n.py -f 3'
+
+# sum tests
+def test_sum_task_basic(task_file):
+    task = task_file.tasks[2]
+    assert task.name == 'sum'
+    assert task.image == 'jstubbs/sum'
+    assert task.command == 'python sum.py'
+    assert task.description == 'Sum all inputs.'
+    assert task.multiple == None
+    assert task.execution == 'local'
