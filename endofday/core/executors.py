@@ -155,6 +155,7 @@ class AgaveExecutor(object):
         """
         if path.startswith('/'):
             path = path[1:]
+        print "creating remote storage directory:", path, "..."
         try:
             rsp = self.ag.files.manage(systemId=self.storage_system,
                                        filePath=self.working_dir,
@@ -163,12 +164,15 @@ class AgaveExecutor(object):
         except Exception as e:
             raise Error("Error creating directory on default storage system. Path: " + path +
                         "Msg:" + str(e))
+        print "directory created."
         return rsp
 
     def upload_file(self, local_path, remote_path):
         """Upload a file on the local system to remote storage. The remote_path param should
         be relative to the endofday working dir. The local_path should be absolute.
         """
+        if remote_path.startswith('/'):
+            remote_path = remote_path[1:]
         sourcefilePath = os.path.join(self.working_dir, remote_path)
         try:
             rsp = self.ag.files.importData(systemId=self.storage_system,
@@ -178,3 +182,83 @@ class AgaveExecutor(object):
             raise Error("Upload to default storage failed - local_path: " + local_path +
                         "; remote_path: " + remote_path + "; Msg:" + str(e))
         return AgaveAsyncResponse(self.ag, rsp)
+
+    def download_file(self, local_path, remote_path):
+        """
+        Download a file from remote storage to the local path. The remote_path param should be relative to the
+        endofday working dir and the local_path should be absolute.
+        """
+        if remote_path.startswith('/'):
+            remote_path = remote_path[1:]
+        path = os.path.join(self.working_dir, remote_path)
+        with open(local_path, 'wb') as f:
+            rsp = self.ag.files.download(systemId=self.storage_system, filePath=path)
+            for block in rsp.iter_content(1024):
+                if not block:
+                    break
+                f.write(block)
+        return {'status': 'success'}
+
+    def get_action(self, task):
+        """
+        Returns a callable for executing a task in the Agave cloud.
+        """
+        def create_volumes():
+            """
+            Create volume directories in the remote storage system to store outputs of the container execution.
+            """
+            for dir in task.volume_dirs:
+                path = dir.eod_rel_path.strip(self.wf_name)
+                self.create_dir(path=path)
+
+        def upload_inputs():
+            """
+            Upload inputs needed for container execution.
+            """
+            responses = []
+            for inpv in task.input_volumes:
+                remote_path = inpv.eod_rel_path.strip(self.wf_name)
+                print "Uploading file", inpv.host_path, "to remote storage location:", remote_path
+                rsp = self.upload_file(local_path=inpv.host_path, remote_path=remote_path)
+                responses.append(rsp)
+            # block until transfers complete
+            for rsp in responses:
+                print "Waiting on upload:", rsp.url
+                status = rsp.result()
+                if status == 'COMPLETE':
+                    print "Upload completed."
+                else:
+                    print "Upload failed... aborting."
+                    raise Error("There was an error uploading a file to remote storage. Status:" + status
+                                + ". URL: " + rsp.url)
+        def get_docker_cmd():
+            """
+            Returns the docker command needed to execute an endofday container in the Agave cloud.
+            :return:
+            """
+            cmd = 'docker run --rm eod-jobs-submit -W -z ' + self.ag.token.token_info.get('access_token')
+            # order important -- mount output volumes first so that inputs overlay them
+            for volume in task.volume_dirs:
+                cmd += ' -m ' + volume.eod_rel_path + ':' + volume.container_path
+            for volume in task.input_volumes:
+                cmd += ' -n ' + volume.eod_rel_path + ':' + volume.container_path
+            cmd += ' -I ' + task.image
+            cmd += ' -c ' + task.command
+
+
+            return cmd
+
+        def action_fn():
+            """
+            This function does the following things:
+            1. Create directories on the storage system for the output volumes.
+            2. Upload all inputs needed for the task to the default storage.
+            3. Submit a job to actually execute the docker container, staging inputs and archiving outputs.
+            4. Download outputs from storage to the local system once job completes.
+            :return:
+            """
+            create_volumes()
+            upload_inputs()
+            cmd = get_docker_cmd()
+
+        return action_fn
