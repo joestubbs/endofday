@@ -22,6 +22,9 @@ processes:
         inputs:
             - add_5.output -> /tmp/input
         outputs:
+            - /tmp/foo/bar/output -> output1
+            - /tmp/foo/baz/output -> output2
+            - /tmp/foo/output -> output3
             - /tmp/output -> output
         command: python mult_n.py -f 3
 
