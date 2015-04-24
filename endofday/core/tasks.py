@@ -148,7 +148,7 @@ class Task(object):
 
     def get_docker_command(self, envs=None):
         """
-        Returns a docker run command for executing either the task image or the endofday cloud runner image.
+        Returns a docker run command for executing either the task image.
         """
         docker_cmd = "docker run --rm"
         # order important here -- need to mount output dirs first so that
@@ -174,12 +174,15 @@ class Task(object):
     def get_action(self, executor=None):
         """
         The action for a task is the function that is actually called by
-        pydoit to execute the task. It needs to do two things:
-        1) create directories on the host for each volume_dir
-        2) execute the docker run statement
+        pydoit to execute the task.
         """
 
         def local_action_fn():
+            """
+            Exectue the docker container on the local machine. Needs to do two things:
+            1) create directories on the host for each volume_dir
+            2) execute the docker run statement
+            """
             # first, create the directories locally
             for dir in self.volume_dirs:
                 if not os.path.exists(dir.host_path):
