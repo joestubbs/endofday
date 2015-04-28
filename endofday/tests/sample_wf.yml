@@ -2,6 +2,7 @@ name: test_wf
 
 inputs:
     - input <- /home/jstubbs/github-repos/endofday/examples/input.txt
+    - loc_in <- loc_in.txt
 
 outputs:
     - sum.output
@@ -33,6 +34,7 @@ processes:
         description: Sum all inputs.
         inputs:
             - mult_3.output -> /data/in.txt
+            - inputs.loc_in -> /data/loc_in
         outputs:
             - /data/out.txt -> output
         command: python sum.py

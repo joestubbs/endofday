@@ -17,18 +17,17 @@ from .executors import AgaveAsyncResponse, AgaveExecutor
 # working directory for endofday
 BASE = os.environ.get('STAGING_DIR') or '/staging'
 
-# base directory on the host; important when endofday is running in docker in which case gloabl paths in the
-# .yml file are
-HOST_BASE = os.environ.get('STAGING_DIR')
-
 # are we running in docker
 RUNNING_IN_DOCKER = False
 if os.environ.get('RUNNING_IN_DOCKER'):
     RUNNING_IN_DOCKER = True
+# the base directory for the endofday docker container
+DOCKER_BASE = '/staging'
 
 # global tasks list to pass to the DockerLoader
 tasks = []
 
+verbose = False
 
 class GlobalInput(object):
     """
@@ -50,6 +49,9 @@ class GlobalInput(object):
         # For composition, and in particular, for this, we'll need a mechanism
         # for referencing an external workflow object.
         self.host_path = self.src
+        # support relative paths for global inputs
+        if not self.host_path.startswith('/'):
+            self.host_path = os.path.join(BASE, self.host_path)
         # todo - need a way to resolve the workflow's label to a host path.
         self.eod_rel_path = os.path.join(wf_name, 'global_inputs', os.path.split(src)[1])
 
@@ -289,10 +291,25 @@ class Task(object):
         """
         Returns a dictionary that can be used to generate a doit task.
         """
+        file_deps = []
+        targets = []
         if RUNNING_IN_DOCKER:
             # pydoit paths need to refer to the endofday container if endofday is running in docker:
-            file_deps = [volume.host_path.replace(HOST_BASE, '/staging') for volume in self.input_volumes]
-            targets = [output.host_path.replace(HOST_BASE, '/staging') for output in self.outputs]
+            for volume in self.input_volumes:
+                if BASE in volume.host_path:
+                    file_deps.append(volume.host_path.replace(BASE, '/staging'))
+                elif volume.host_path.startswith('/'):
+                    # global input that is not in the staging dir so look in /host
+                    file_deps.append(os.path.join('/host', volume.host_path[1:]))
+                else:
+                    file_deps.append(os.path.join('/host', volume.host_path))
+            for output in self.outputs:
+                if BASE in output.host_path:
+                    targets.append(output.host_path.replace(BASE, '/staging'))
+                elif output.host_path.startswith('/'):
+                    targets.append(os.path.join('/host', output.host_path[1:]))
+                else:
+                    targets.append(os.path.join('/host', output.host_path))
         else:
             file_deps = [volume.host_path for volume in self.input_volumes]
             targets = [output.host_path for output in self.outputs]
@@ -303,6 +320,10 @@ class Task(object):
             'targets': targets,
             'file_dep': file_deps,
         }
+        if verbose:
+            print "BASE:", BASE
+            print "file_deps:", str(file_deps)
+            print "outputs:", str(targets)
 
 class DockerLoader(TaskLoader):
     @staticmethod
@@ -428,6 +449,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Execute workflow of docker containers described in a yaml file.')
     parser.add_argument('yaml_file', type=str,
                         help='Yaml file to parse')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true')
+    parser.set_defaults(verbose=False)
     args = parser.parse_args()
+    verbose = args.verbose
+    if verbose:
+        print 'RUNNING_IN_DOCKER:', RUNNING_IN_DOCKER
     main(args.yaml_file)
     main()

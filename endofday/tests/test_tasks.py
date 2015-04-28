@@ -20,12 +20,18 @@ def test_basic_task_file_attrs(task_file):
     assert task_file.executor == 'local'
 
 def test_global_inputs(task_file):
-    assert len(task_file.global_inputs) == 1
+    assert len(task_file.global_inputs) == 2
     glob_in = task_file.global_inputs[0]
     assert glob_in.label == 'input'
     assert glob_in.host_path == '/home/jstubbs/github-repos/endofday/examples/input.txt'
     assert glob_in.src == '/home/jstubbs/github-repos/endofday/examples/input.txt'
     assert glob_in.eod_rel_path == os.path.join('test_wf', 'global_inputs', 'input.txt')
+
+    glob_in = task_file.global_inputs[1]
+    assert glob_in.label == 'loc_in'
+    assert glob_in.host_path == '/staging/loc_in.txt'
+    assert glob_in.src == 'loc_in.txt'
+    assert glob_in.eod_rel_path == os.path.join('test_wf', 'global_inputs', 'loc_in.txt')
 
 def test_tasks_length(task_file):
     assert len(task_file.tasks) == 3
@@ -178,3 +184,17 @@ def test_sum_task_basic(task_file):
     assert task.description == 'Sum all inputs.'
     assert task.multiple == None
     assert task.execution == 'local'
+
+def test_sum_inputs(task_file):
+    task = task_file.tasks[2]
+    assert len(task.inputs) == 2
+    inp = task.inputs[0]
+    assert inp.src == 'mult_3.output'
+    assert inp.dest == '/data/in.txt'
+    assert inp.src_name == 'output'
+    assert inp.src_task == 'mult_3'
+    inp = task.inputs[1]
+    assert inp.src == 'inputs.loc_in'
+    assert inp.dest == '/data/loc_in'
+    assert inp.src_name == 'loc_in'
+    assert inp.src_task == 'inputs'
