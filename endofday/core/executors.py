@@ -6,9 +6,13 @@ import requests
 import time
 
 from agavepy.agave import Agave
-from ConfigParser import NoOptionError
+import jinja2
+
 from .error import Error
 from .config import Config
+from .template import ConfigGen
+
+TEMPLATE = 'job.j2'
 
 class TimeoutError(Error):
     pass
@@ -247,6 +251,27 @@ class AgaveExecutor(object):
 
 
             return cmd
+
+        def submit_job():
+            """
+            Submits an Agave job to execute an endofday step in the cloud.
+            :return:
+            """
+            conf = ConfigGen(TEMPLATE)
+            env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.getcwd()), trim_blocks=True, lstrip_blocks=True)
+            inputs = []
+            input_base = 'agave://' + self.storage_system + '//'
+            for inpv in task.input_volumes:
+                inp = {'path_str': os.path.join(self.working_dir, inpv.eod_rel_path.strip(self.wf_name)[1:]) + ','}
+                inputs.append(inp)
+            # remove trailing comma from last entry:
+            inputs[-1]['path_str'] = inputs[-1]['path_str'][:-1]
+            context = {'wf_name': self.wf_name,
+                       'task_name': task.name,
+                       'global_inputs': inputs,}
+            job = conf.compile(context, env)
+            rsp = self.ag.jobs.submit(body=job)
+
 
         def action_fn():
             """
