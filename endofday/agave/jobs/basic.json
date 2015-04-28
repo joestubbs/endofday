@@ -1,0 +1,15 @@
+{
+  "name": "eod-demo test",
+  "appId": "endofday-local-0.0.1",
+  "inputs": {
+    "wf": ["agave://endofday.local.storage.com//data/algebra.yml"]
+  },
+  "archive": false,
+  "notifications": [
+    {
+      "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
+      "event": "*",
+      "persistent": true
+    }
+  ]
+}
