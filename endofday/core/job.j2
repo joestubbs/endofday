@@ -1,0 +1,17 @@
+{
+  "name": "eod-{{ wf_name }}-{{ task_name }}",
+  "appId": "endofday-local-0.0.1",
+  "inputs": {
+    "wf": ["agave://endofday.local.storage.com//data/algebra2.yml"],
+    {% if global_inputs %}
+    "glob_in": ["{% for inp in global_inputs inp.path_str %}"]
+  },
+  "archive": true,
+  "notifications": [
+    {
+      "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
+      "event": "*",
+      "persistent": true
+    }
+  ]
+}
