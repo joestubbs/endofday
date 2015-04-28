@@ -10,22 +10,11 @@ from collections import OrderedDict
 import jinja2
 import yaml
 
+from .template import ConfigGen
+
 TEMPLATE = 'nf.j2'
 NEXTFLOW_BASE = os.environ.get('STAGING') or '/staging'
 HOST_BASE = os.environ.get('STAGING_DIR') or '/staging'
-
-class ConfigGen(object):
-    """
-    Utility class for generating a config file from a jinja template.
-    """
-    def __init__(self, template_str):
-        self.template_str = template_str
-
-    def generate_conf(self, configs, path, env):
-        template = env.get_template(self.template_str)
-        output = template.render(configs)
-        with open(path, 'w+') as f:
-            f.write(output)
 
 
 class Process(object):
