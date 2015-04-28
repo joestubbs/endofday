@@ -1,0 +1,88 @@
+{
+  "name": "endofday-local",
+  "version": "0.0.1",
+  "available": true,
+  "parallelism": "SERIAL",
+  "helpURI": "https://github.com/joestubbs/endofday",
+  "label": "endofday-local",
+  "shortDescription": "Execute an endofday workflow using localhost execution.",
+  "longDescription": "",
+  "author": "Joe Stubbs",
+  "datePublished": "",
+  "publiclyAvailable": "false",
+  "tags": [
+    "containers",
+    "docker",
+    "workflow"
+  ],
+  "executionSystem": "endofday.local.execute.com",
+  "executionType": "CLI",
+  "defaultQueue": "debug",
+  "defaultNodes": 1,
+  "defaultProcessorsPerNode": 1,
+  "defaultMemoryPerNode": "2GB",
+  "defaultMaxRunTime": "01:00:00",
+  "deploymentSystem": "endofday.local.storage.com",
+  "deploymentPath": "/home/ubuntu/endofday/",
+  "templatePath": "wrapper.sh",
+  "testPath": "tests/test.sh",
+  "checkpointable": true,
+  "inputs": [
+    {
+      "id": "wf",
+      "value": {
+        "validator": "",
+        "required": true,
+        "default": "",
+        "order": 0,
+        "visible": true,
+        "enquote": false
+      },
+      "details": {
+        "label": "Yaml file defining the workflow to execute.",
+        "description": "",
+        "repeatArgument": false,
+        "showArgument": false
+      },
+      "semantics": {
+        "ontology": [
+          "http://sswapmeet.sswap.info/util/TextDocument"
+        ],
+        "minCardinality": 1,
+        "maxCardinality": 1,
+        "fileTypes": [
+          "text-0"
+        ]
+      }
+    },
+    {
+      "id": "glob_in",
+      "value": {
+        "validator": "",
+        "required": false,
+        "default": "",
+        "order": 1,
+        "visible": true,
+        "enquote": false
+      },
+      "details": {
+        "label": "Global input file to the work flow",
+        "description": "",
+        "repeatArgument": false,
+        "showArgument": false
+      },
+      "semantics": {
+        "ontology": [
+          "http://sswapmeet.sswap.info/util/TextDocument"
+        ],
+        "minCardinality": 0,
+        "maxCardinality": -1,
+        "fileTypes": [
+          "text-0"
+        ]
+      }
+    }
+  ],
+  "outputs": [
+  ]
+}
