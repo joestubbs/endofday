@@ -5,7 +5,7 @@
     "wf": ["agave://endofday.local.storage.com//data/algebra2.yml"],
     "glob_in": ["agave://endofday.local.storage.com//data/input.txt"]
   },
-  "archive": false,
+  "archive": true,
   "notifications": [
     {
       "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
