@@ -22,7 +22,7 @@ download anything. To get started:
    current working directory.
 
 2. Create a yaml file defining your workflow: specify which containers
-   to run and define the inputs, outputs, volumes and more. Use
+   to run and define the inputs, outputs, and command. Use
    outputs from one container as inputs to another to create a
    dependency. You can also specify files on your local system to use
    as inputs. Use any image available locally or on the docker hub.
@@ -101,3 +101,59 @@ represents it.  Each block shows an individual image and the files
        outputs:
          - /data/output.txt
        command: run_s
+
+
+Agave Integration
+=================
+We are building support for running endofday tasks on the Agave Platform's compute cloud. Initially, two use cases will be
+supported: 1) executing entire workflows on the cloud and 2) farming out individual task computations to Agave as part
+of a workflow running on your local machine.
+
+After configuring endofday to use your Agave account for submitting jobs, you can execute an entire workflow on the
+Agave cloud simply by executing:
+
+   .. code-block:: bash
+
+      $ ./endofday my_workflow.yml --agave
+
+All docker containers will be executed on the Agave cloud and their outputs archived to your default storage system
+or another storage system you configure. You can configure an email address to get a notification when the results
+are ready.
+
+Alternatively, you can instruct endofday to execute specific tasks on the Agave cloud as part of a larger workflow
+executing on your local machine. The endofday engine will send instructions to Agave to run the specific container
+and command in cloud after uploading all necessary dependencies to the storage system defined. Once the job completes,
+endofday will download the results and continue executing the workflow.
+
+To use either approach, you first need an Agave account and an API client. If you don't have those already you can
+get those here: http://preview.agaveapi.co/documentation/beginners-guides/
+
+Configuration
+-------------
+
+Configure endofday to use your Agave credentials by adding the following fields to your endofday.conf file under
+the Agave section.
+
+.. code-block:: yaml
+    [agave]
+    # these configurations are only needed when running on the Agave platform
+
+    # the base URL for the Agave tenant to use
+    api_server: https://agave.iplantc.org
+
+    # Agave username
+    username: jstubbs
+    # password: abc
+
+    # client credentials
+    client_name: test2
+    client_key: 1VkZVI0cKVwuQfxKpPTtTkTOWEMa
+    # client_secret: 123
+
+    # storage system
+    storage_system: data.iplantcollaborative.org
+
+    # home directory for endofday. Each work flow execution will automatically get a directory within this directory.
+    # Default is to use the Agave username.
+    home_dir: jstubbs
+
