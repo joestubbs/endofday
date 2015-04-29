@@ -73,8 +73,6 @@ represents it.  Each block shows an individual image and the files
 
      N1:
        image: user/image_n1
-       volumes:
-         - /tmp
        inputs:
          - P.output_p_1 -> /tmp/input_n1.txt
        outputs:
@@ -83,8 +81,6 @@ represents it.  Each block shows an individual image and the files
 
      N2:
        image: user/image_n2
-       volumes:
-         - /target
        inputs:
          - P.output_p_2 -> /target/input_n2.txt
        outputs:
@@ -93,8 +89,6 @@ represents it.  Each block shows an individual image and the files
 
      S:
        image: user/image_s
-       volumes:
-         - /data
        inputs:
          - N1.output_n1 -> /data/a.txt
          - N2.output_n2 -> /data/b.txt
@@ -129,13 +123,12 @@ To execute a specific task on the Agave cloud, specify 'agave' as the value for 
 workflow definition file. For example, to run N2 on Agave we would update the above yaml file with this stanza:
 
 .. code-block:: yaml
+
      .   .   .
 
      N2:
        image: user/image_n2
        execution: agave
-       volumes:
-         - /target
        inputs:
          - P.output_p_2 -> /target/input_n2.txt
        outputs:
@@ -153,25 +146,26 @@ Configure endofday to use your Agave credentials by adding the following fields 
 the Agave section.
 
 .. code-block:: yaml
-    [agave]
-    # these configurations are only needed when running on the Agave platform
 
-    # the base URL for the Agave tenant to use
-    api_server: https://agave.iplantc.org
-
-    # Agave username
-    username: jstubbs
-    # password: abc
-
-    # client credentials
-    client_name: test2
-    client_key: 1VkZVI0cKVwuQfxKpPTtTkTOWEMa
-    # client_secret: 123
-
-    # storage system
-    storage_system: data.iplantcollaborative.org
-
-    # home directory for endofday. Each work flow execution will automatically get a directory within this directory.
-    # Default is to use the Agave username.
-    home_dir: jstubbs
+       [agave]
+       # these configurations are only needed when running on the Agave platform
+   
+       # the base URL for the Agave tenant to use
+       api_server: https://agave.iplantc.org
+   
+       # Agave username
+       username: testuser
+       password: abcd123
+   
+       # client credentials
+       client_name: demo
+       client_key: MY_CLIENT_KEY
+       client_secret: MY_CLIENT_SECRET
+   
+       # storage system for persisting results
+       storage_system: data.iplantcollaborative.org
+   
+       # home directory for endofday. Each work flow execution will automatically get a directory within this directory.
+       # Default is to use the Agave username.
+       home_dir: testuser
 
