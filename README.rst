@@ -125,6 +125,24 @@ executing on your local machine. The endofday engine will send instructions to A
 and command in cloud after uploading all necessary dependencies to the storage system defined. Once the job completes,
 endofday will download the results and continue executing the workflow.
 
+To execute a specific task on the Agave cloud, specify 'agave' as the value for execution directly in the yaml
+workflow definition file. For example, to run N2 on Agave we would update the above yaml file with this stanza:
+
+.. code-block:: yaml
+     .   .   .
+
+     N2:
+       image: user/image_n2
+       execution: agave
+       volumes:
+         - /target
+       inputs:
+         - P.output_p_2 -> /target/input_n2.txt
+       outputs:
+         - /target/output_n2.txt -> output_n2
+       command: run_n2
+
+
 To use either approach, you first need an Agave account and an API client. If you don't have those already you can
 get those here: http://preview.agaveapi.co/documentation/beginners-guides/
 
