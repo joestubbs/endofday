@@ -1,5 +1,13 @@
 """
 Tests for the tasks module.
+
+To run the tests:
+1. Make sure endofday.conf has necessary fields for interacting with iplant.
+2. If not putting them in the config, export AGAVE_CLIENT_SECRET and AGAVE_PASSWORD as env vars.
+3. Activate the endofday virtualenv and execute
+    $ py.test test_tasks.py
+   from within this directory.
+
 """
 
 import os
