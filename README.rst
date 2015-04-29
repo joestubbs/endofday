@@ -65,7 +65,7 @@ represents it.  Each block shows an individual image and the files
      P:
        image: user/image_p
        inputs:
-         - inputs.input1:/data/input_p.txt
+         - inputs.input1 -> /data/input_p.txt
        outputs:
          - /data/output_p_1.txt -> output_p_1
          - /data/output_p_2.txt -> output_p_2
