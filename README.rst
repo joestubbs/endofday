@@ -64,13 +64,11 @@ represents it.  Each block shows an individual image and the files
    processes:
      P:
        image: user/image_p
-       volumes:
-         - /data
        inputs:
-         - inputs/input1:/data/input_p.txt
+         - inputs.input1:/data/input_p.txt
        outputs:
-         - /data/output_p_1.txt
-         - /data/output_p_2.txt
+         - /data/output_p_1.txt -> output_p_1
+         - /data/output_p_2.txt -> output_p_2
        command: run_p
 
      N1:
@@ -78,9 +76,9 @@ represents it.  Each block shows an individual image and the files
        volumes:
          - /tmp
        inputs:
-         - P/data/output_p_1.txt:/tmp/input_n1.txt
+         - P.output_p_1 -> /tmp/input_n1.txt
        outputs:
-         - /tmp/output_n1.txt
+         - /tmp/output_n1.txt -> output_n1
        command: run_n1
 
      N2:
@@ -88,9 +86,9 @@ represents it.  Each block shows an individual image and the files
        volumes:
          - /target
        inputs:
-         - P/data/output_p_2.txt:/target/input_n2.txt
+         - P.output_p_2 -> /target/input_n2.txt
        outputs:
-         - /target/output_n2.txt
+         - /target/output_n2.txt -> output_n2
        command: run_n2
 
      S:
@@ -98,8 +96,8 @@ represents it.  Each block shows an individual image and the files
        volumes:
          - /data
        inputs:
-         - N1/tmp/output_n1.txt:/data/a.txt
-         - N2/target/output_n2.txt:/data/b.txt
+         - N1.output_n1 -> /data/a.txt
+         - N2.output_n2 -> /data/b.txt
        outputs:
          - /data/output.txt
        command: run_s
