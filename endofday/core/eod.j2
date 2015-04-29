@@ -1,0 +1,25 @@
+name: {{ wf_name }}
+
+{% if global_inputs %}
+inputs:
+{% for inp in global_inputs %}
+  - {{ inp.label }} <- {{ inp.src }}
+
+{% if global_outputs %}
+outputs:
+{% for out in global_outputs %}
+  - {{ out.label }}
+
+processes:
+{% for proc in processes %}
+  - {{ proc.name }}:
+      image: {{ proc.image }}
+      {% if proc.inputs %}
+      inputs:
+      {% for inp in proc.inputs %}
+        - {{ inp.label }} -> {{ inp.dest }}
+      {% if proc.outputs %}
+      outputs:
+      {% for out in proc.outputs %}
+        - {{ out.label }} -> {{ out.src }}
+      command: {{ proc.command }}

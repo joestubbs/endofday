@@ -12,7 +12,8 @@ from .error import Error
 from .config import Config
 from .template import ConfigGen
 
-TEMPLATE = 'job.j2'
+JOB_TEMPLATE = 'job.j2'
+EOD_TEMPLATE = 'eod.j2'
 
 class TimeoutError(Error):
     pass
@@ -47,6 +48,9 @@ class AgaveAsyncResponse(object):
             raise Error("Error updating status: " + str(rsp))
         # if the transfer ever completed, we'll call it good:
         if len([x for x in result if 'COMPLETE' in x['status']]) > 0:
+            self.status = 'COMPLETE'
+        # jobs end in 'finished' status
+        elif len([x for x in result if 'FINISHED' in x['status']]) > 0:
             self.status = 'COMPLETE'
         else:
             # sort on creation time of the history object
@@ -203,75 +207,92 @@ class AgaveExecutor(object):
                 f.write(block)
         return {'status': 'success'}
 
+    def create_volumes(self, task):
+        """
+        Create volume directories in the remote storage system to store outputs of the container execution.
+        """
+        for dir in task.volume_dirs:
+            path = dir.eod_rel_path.strip(self.wf_name)
+            self.create_dir(path=path)
+
+    def upload_inputs(self, task):
+        """
+        Upload inputs needed for container execution.
+        """
+        responses = []
+        for inpv in task.input_volumes:
+            remote_path = inpv.eod_rel_path.strip(self.wf_name)
+            print "Uploading file", inpv.host_path, "to remote storage location:", remote_path
+            rsp = self.upload_file(local_path=inpv.host_path, remote_path=remote_path)
+            responses.append(rsp)
+        # block until transfers complete
+        for rsp in responses:
+            print "Waiting on upload:", rsp.url
+            status = rsp.result()
+            if status == 'COMPLETE':
+                print "Upload completed."
+            else:
+                print "Upload failed... aborting."
+                raise Error("There was an error uploading a file to remote storage. Status:" + status
+                            + ". URL: " + rsp.url)
+
+    def get_task_context(self, task):
+        """
+        Creates the context dictionary for generating an eod yaml file for running a single task on Agave cloud.
+        :param task:
+        :return:
+        """
+        context = {}
+        context['wf_name'] = task.name
+        # create a global input for each input to the task
+        context['global_inputs'] = []
+        for idx, inpv in enumerate(task.input_volumes):
+            src = os.path.split(inpv.host_path)
+            if len(src) > 1:
+                src = src[1]
+            else:
+                src = src[0]
+            inp = {'src': src, 'label': 'input_' + str(idx)}
+            context['global_inputs'].append(inp)
+        process = {'name': task.name, 'image':task.image, 'command': task.command}
+        process['inputs'] = []
+        for idx, inpv in enumerate(task.input_volumes):
+            inp = {'label':'inputs.input_' + str(idx), 'dest': inpv.container_path}
+            process['inputs'].append(inp)
+        process['outputs'] = []
+        for output in task.outputs:
+            process['outputs'].append({'src':output.src, 'label': output.label})
+        context['processes'] = [process]
+        return context
+
+    def gen_task_defn(self, task):
+        """
+        Generates an eod yaml file for running a single task on Agave cloud, and uploads the file to remote storage.
+        :param task:
+        :return:
+        """
+        context = self.get_task_context(task)
+
+
+    def get_docker_cmd(self, task):
+        """
+        Returns the docker command needed to execute an endofday container in the Agave cloud.
+        :return:
+        """
+        cmd = 'docker run --rm eod-jobs-submit -W -z ' + self.ag.token.token_info.get('access_token')
+        # order important -- mount output volumes first so that inputs overlay them
+        for volume in task.volume_dirs:
+            cmd += ' -m ' + volume.eod_rel_path + ':' + volume.container_path
+        for volume in task.input_volumes:
+            cmd += ' -n ' + volume.eod_rel_path + ':' + volume.container_path
+        cmd += ' -I ' + task.image
+        cmd += ' -c ' + task.command
+        return cmd
+
     def get_action(self, task):
         """
         Returns a callable for executing a task in the Agave cloud.
         """
-        def create_volumes():
-            """
-            Create volume directories in the remote storage system to store outputs of the container execution.
-            """
-            for dir in task.volume_dirs:
-                path = dir.eod_rel_path.strip(self.wf_name)
-                self.create_dir(path=path)
-
-        def upload_inputs():
-            """
-            Upload inputs needed for container execution.
-            """
-            responses = []
-            for inpv in task.input_volumes:
-                remote_path = inpv.eod_rel_path.strip(self.wf_name)
-                print "Uploading file", inpv.host_path, "to remote storage location:", remote_path
-                rsp = self.upload_file(local_path=inpv.host_path, remote_path=remote_path)
-                responses.append(rsp)
-            # block until transfers complete
-            for rsp in responses:
-                print "Waiting on upload:", rsp.url
-                status = rsp.result()
-                if status == 'COMPLETE':
-                    print "Upload completed."
-                else:
-                    print "Upload failed... aborting."
-                    raise Error("There was an error uploading a file to remote storage. Status:" + status
-                                + ". URL: " + rsp.url)
-        def get_docker_cmd():
-            """
-            Returns the docker command needed to execute an endofday container in the Agave cloud.
-            :return:
-            """
-            cmd = 'docker run --rm eod-jobs-submit -W -z ' + self.ag.token.token_info.get('access_token')
-            # order important -- mount output volumes first so that inputs overlay them
-            for volume in task.volume_dirs:
-                cmd += ' -m ' + volume.eod_rel_path + ':' + volume.container_path
-            for volume in task.input_volumes:
-                cmd += ' -n ' + volume.eod_rel_path + ':' + volume.container_path
-            cmd += ' -I ' + task.image
-            cmd += ' -c ' + task.command
-
-
-            return cmd
-
-        def submit_job():
-            """
-            Submits an Agave job to execute an endofday step in the cloud.
-            :return:
-            """
-            conf = ConfigGen(TEMPLATE)
-            env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.getcwd()), trim_blocks=True, lstrip_blocks=True)
-            inputs = []
-            input_base = 'agave://' + self.storage_system + '//'
-            for inpv in task.input_volumes:
-                inp = {'path_str': os.path.join(self.working_dir, inpv.eod_rel_path.strip(self.wf_name)[1:]) + ','}
-                inputs.append(inp)
-            # remove trailing comma from last entry:
-            inputs[-1]['path_str'] = inputs[-1]['path_str'][:-1]
-            context = {'wf_name': self.wf_name,
-                       'task_name': task.name,
-                       'global_inputs': inputs,}
-            job = conf.compile(context, env)
-            rsp = self.ag.jobs.submit(body=job)
-
 
         def action_fn():
             """
@@ -282,8 +303,47 @@ class AgaveExecutor(object):
             4. Download outputs from storage to the local system once job completes.
             :return:
             """
-            create_volumes()
-            upload_inputs()
-            cmd = get_docker_cmd()
+            self.create_volumes(task)
+            self.upload_inputs(task)
+            self.upload_task_defn(task)
+            rsp = self.submit_job(task)
+            # block until job completes
+            result = rsp.result()
+            if not result == 'COMPLETE':
+                raise Error("Job for task: " + task.name + " failed to complete. Job status: " + result + ". URL: " + rsp.url)
+            # download results:
+
 
         return action_fn
+
+    def get_job(self, task):
+        """
+        Returns JSON description of an endofday job after compiling the job.j2 template.
+        :param task:
+        :return:
+        """
+        conf = ConfigGen(JOB_TEMPLATE)
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.getcwd()), trim_blocks=True, lstrip_blocks=True)
+        inputs = []
+        input_base = 'agave://' + self.storage_system + '//'
+        for inpv in task.input_volumes:
+            inp = {'path_str': input_base + os.path.join(self.working_dir, inpv.eod_rel_path.strip(self.wf_name)[1:]) + ','}
+            inputs.append(inp)
+        # remove trailing comma from last entry:
+        inputs[-1]['path_str'] = inputs[-1]['path_str'][:-1]
+        context = {'wf_name': self.wf_name,
+                   'task_name': task.name,
+                   'global_inputs': inputs,}
+        return conf.compile(context, env)
+
+    def submit_job(self, task):
+        """
+        Submits an Agave job to execute an endofday step in the cloud.
+        :return:
+        """
+        job = self.get_job(task)
+        try:
+            rsp = self.ag.jobs.submit(body=job)
+        except Exception as e:
+            raise Error("Error trying to submit job for task: " + task.name + '. Exception: ' + str(e))
+        return AgaveAsyncResponse(self.ag, rsp)

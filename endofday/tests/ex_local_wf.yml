@@ -1,0 +1,13 @@
+name: add_5
+
+inputs:
+    - input_0 <- input.txt
+
+processes:
+    add_5:
+        image: jstubbs/add_n
+        inputs:
+            - inputs.input_0 -> /data/input.txt
+        outputs:
+            - /data/output.txt -> output
+        command: python add_n.py -i 5

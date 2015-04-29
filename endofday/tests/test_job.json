@@ -1,10 +1,9 @@
 {
-  "name": "eod-{{ wf_name }}-{{ task_name }}",
+  "name": "eod-",
   "appId": "endofday-local-0.0.1",
   "inputs": {
-    "wf": ["{{ wf_path }}"],
-    {% if global_inputs %}
-    "glob_in": ["{% for inp in global_inputs inp.path_str %}"]
+    "wf": ["agave://endofday.local.storage.com//jstubbs/test_suite_wf/add_5/add_5.yml"],
+    "glob_in": ["agave://endofday.local.storage.com//jstubbs/test_suite_wf/global_inputs/input.txt"]
   },
   "archive": true,
   "notifications": [
