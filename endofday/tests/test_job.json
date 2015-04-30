@@ -1,5 +1,5 @@
 {
-  "name": "eod-",
+  "name": "eod-test_wf-add_5",
   "appId": "endofday-local-0.0.1",
   "inputs": {
     "wf": ["agave://endofday.local.storage.com//jstubbs/test_suite_wf/add_5/add_5.yml"],

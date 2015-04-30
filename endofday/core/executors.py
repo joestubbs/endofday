@@ -14,6 +14,7 @@ from .template import ConfigGen
 
 JOB_TEMPLATE = 'job.j2'
 EOD_TEMPLATE = 'eod.j2'
+HERE = os.path.dirname(os.path.abspath((__file__)))
 
 class TimeoutError(Error):
     pass
@@ -26,6 +27,7 @@ class AgaveAsyncResponse(object):
         """Construct an asynchronous response object from an Agave response which should be an agavepy.agave.AttrDict
         """
         self.ag = ag
+        self.response = response
         self.status = response.status
         self.retries = 0
         self.url = response._links.get('history').get('href')
@@ -93,7 +95,7 @@ class AgaveExecutor(object):
 
     def __init__(self, wf_name, url=None, username=None, password=None,
                  client_name=None, client_key=None, client_secret=None,
-                 storage_system=None, home_dir=None):
+                 storage_system=None, home_dir=None, verify=None):
         self.from_config()
         if not url:
             url = self.api_server
@@ -111,8 +113,10 @@ class AgaveExecutor(object):
             storage_system = self.storage_system
         if not home_dir:
             home_dir = self.home_dir
+        if verify is None:
+            verify = self.verify
         self.ag = Agave(api_server=url, username=username, password=password,
-                        client_name=client_name, api_key=client_key, api_secret=client_secret)
+                        client_name=client_name, api_key=client_key, api_secret=client_secret, verify=verify)
         self.storage_system = storage_system
         self.wf_name = wf_name
         self.home_dir = home_dir
@@ -121,10 +125,14 @@ class AgaveExecutor(object):
             self.home_dir = username
         self.working_dir = os.path.join(self.home_dir, wf_name)
         # create the working directory now
-        rsp = self.ag.files.manage(systemId=self.storage_system,
-                                   filePath=self.home_dir,
-                                   body={'action':'mkdir',
-                                         'path':wf_name})
+        try:
+            rsp = self.ag.files.manage(systemId=self.storage_system,
+                                       filePath=self.home_dir,
+                                       body={'action':'mkdir',
+                                             'path':wf_name})
+        except requests.exceptions.HTTPError as e:
+            # if the directory already exists we could get an error trying to create it.
+            pass
 
     def from_config(self):
         """
@@ -148,6 +156,9 @@ class AgaveExecutor(object):
             raise Error('Invalid config: client_name is required.')
 
         # optional args:
+        self.verify = Config.get('agave', 'verify')
+        if self.verify == 'False':
+            self.verify = False
         self.client_key = Config.get('agave', 'client_key')
         self.client_secret = Config.get('agave', 'client_secret')
         if not self.client_secret:
@@ -158,15 +169,15 @@ class AgaveExecutor(object):
         self.home_dir = Config.get('agave', 'home_dir')
 
     def create_dir(self, path):
-        """Create a directory on the configured storage system inside the endofday working
-        directory. The path argument should be a relative path; a leading slash will be removed.
+        """Create a directory on the configured storage system inside the endofday home dir. The path argument
+        should be a relative path; a leading slash will be removed.
         """
         if path.startswith('/'):
             path = path[1:]
         print "creating remote storage directory:", path, "..."
         try:
             rsp = self.ag.files.manage(systemId=self.storage_system,
-                                       filePath=self.working_dir,
+                                       filePath=self.home_dir,
                                        body={'action':'mkdir',
                                              'path':path})
         except Exception as e:
@@ -177,11 +188,11 @@ class AgaveExecutor(object):
 
     def upload_file(self, local_path, remote_path):
         """Upload a file on the local system to remote storage. The remote_path param should
-        be relative to the endofday working dir. The local_path should be absolute.
+        be relative to the endofday home dir. The local_path should be absolute.
         """
         if remote_path.startswith('/'):
             remote_path = remote_path[1:]
-        sourcefilePath = os.path.join(self.working_dir, remote_path)
+        sourcefilePath = os.path.join(self.home_dir, remote_path)
         try:
             rsp = self.ag.files.importData(systemId=self.storage_system,
                                            filePath=sourcefilePath,
@@ -194,13 +205,15 @@ class AgaveExecutor(object):
     def download_file(self, local_path, remote_path):
         """
         Download a file from remote storage to the local path. The remote_path param should be relative to the
-        endofday working dir and the local_path should be absolute.
+        endofday home dir and the local_path should be absolute.
         """
         if remote_path.startswith('/'):
             remote_path = remote_path[1:]
-        path = os.path.join(self.working_dir, remote_path)
+        path = os.path.join(self.home_dir, remote_path)
         with open(local_path, 'wb') as f:
             rsp = self.ag.files.download(systemId=self.storage_system, filePath=path)
+            if type(rsp) == dict:
+                raise Error("Error downloading file at path: " + remote_path + ". Response: " + str(rsp))
             for block in rsp.iter_content(1024):
                 if not block:
                     break
@@ -209,11 +222,16 @@ class AgaveExecutor(object):
 
     def create_volumes(self, task):
         """
-        Create volume directories in the remote storage system to store outputs of the container execution.
+        Create volume directories on the local host and in the remote storage system to store outputs of the
+        container execution.
         """
         for dir in task.volume_dirs:
-            path = dir.eod_rel_path.strip(self.wf_name)
-            self.create_dir(path=path)
+            if not os.path.exists(dir.host_path):
+                print "creating: ", dir.host_path
+                os.makedirs(dir.host_path)
+        # create directories in the remote storage:
+        for dir in task.volume_dirs:
+            self.create_dir(path=dir.eod_rel_path)
 
     def upload_inputs(self, task):
         """
@@ -221,9 +239,8 @@ class AgaveExecutor(object):
         """
         responses = []
         for inpv in task.input_volumes:
-            remote_path = inpv.eod_rel_path.strip(self.wf_name)
-            print "Uploading file", inpv.host_path, "to remote storage location:", remote_path
-            rsp = self.upload_file(local_path=inpv.host_path, remote_path=remote_path)
+            print "Uploading file", inpv.host_path, "to remote storage location:", inpv.eod_rel_path
+            rsp = self.upload_file(local_path=inpv.host_path, remote_path=inpv.eod_rel_path)
             responses.append(rsp)
         # block until transfers complete
         for rsp in responses:
@@ -268,11 +285,17 @@ class AgaveExecutor(object):
     def gen_task_defn(self, task):
         """
         Generates an eod yaml file for running a single task on Agave cloud, and uploads the file to remote storage.
+        Returns path of the file stored locally.
         :param task:
         :return:
         """
         context = self.get_task_context(task)
-
+        conf = ConfigGen(EOD_TEMPLATE)
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
+        # store yaml locally of the form <task.name>.yml
+        path = os.path.join(task.base_path, task.name + '.yml')
+        conf.generate_conf(context, path, env)
+        return path
 
     def get_docker_cmd(self, task):
         """
@@ -288,6 +311,15 @@ class AgaveExecutor(object):
         cmd += ' -I ' + task.image
         cmd += ' -c ' + task.command
         return cmd
+
+    def upload_task_defn(self, task):
+        """
+        Generate and upload the yml file representing this task.
+        :param task:
+        :return:
+        """
+        path = self.gen_task_defn(task)
+        self.upload_file(local_path=path, remote_path=task.eod_rel_path)
 
     def get_action(self, task):
         """
@@ -312,7 +344,15 @@ class AgaveExecutor(object):
             if not result == 'COMPLETE':
                 raise Error("Job for task: " + task.name + " failed to complete. Job status: " + result + ". URL: " + rsp.url)
             # download results:
-
+            base_path = rsp.response.get('archivePath').strip(self.home_dir)
+            if base_path[0] == '/':
+                base_path = base_path[1:]
+            for output in task.outputs:
+                local_path = os.path.join(task.base_path, output.src)
+                # remote path is: <username>/<job-dir>/<wf_name>/<task_name>/<output>
+                # base_path contains <username>/<job-dir>; wf_name == task_name
+                remote_path = os.path.join(base_path, task.name, task.name, output.src)
+                self.download_file(local_path=local_path, remote_path=remote_path)
 
         return action_fn
 
@@ -323,17 +363,19 @@ class AgaveExecutor(object):
         :return:
         """
         conf = ConfigGen(JOB_TEMPLATE)
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.getcwd()), trim_blocks=True, lstrip_blocks=True)
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
         inputs = []
         input_base = 'agave://' + self.storage_system + '//'
+        wf_path = input_base + os.path.join(self.home_dir, task.eod_rel_path, task.name + '.yml')
         for inpv in task.input_volumes:
-            inp = {'path_str': input_base + os.path.join(self.working_dir, inpv.eod_rel_path.strip(self.wf_name)[1:]) + ','}
+            inp = {'path_str': input_base + os.path.join(self.home_dir, inpv.eod_rel_path) + ','}
             inputs.append(inp)
         # remove trailing comma from last entry:
         inputs[-1]['path_str'] = inputs[-1]['path_str'][:-1]
         context = {'wf_name': self.wf_name,
                    'task_name': task.name,
-                   'global_inputs': inputs,}
+                   'global_inputs': inputs,
+                   'wf_path': wf_path}
         return conf.compile(context, env)
 
     def submit_job(self, task):

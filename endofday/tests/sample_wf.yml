@@ -1,4 +1,4 @@
-name: test_wf
+name: test_suite_wf
 
 inputs:
     - input <- /home/jstubbs/github-repos/endofday/examples/input.txt
