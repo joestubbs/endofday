@@ -4,11 +4,15 @@ name: {{ wf_name }}
 inputs:
 {% for inp in global_inputs %}
   - {{ inp.label }} <- {{ inp.src }}
+{% endfor %}
+{% endif %}
 
 {% if global_outputs %}
 outputs:
 {% for out in global_outputs %}
   - {{ out.label }}
+{% endfor %}
+{% endif %}
 
 processes:
 {% for proc in processes %}
@@ -18,8 +22,13 @@ processes:
       inputs:
       {% for inp in proc.inputs %}
         - {{ inp.label }} -> {{ inp.dest }}
+      {% endfor %}
+      {% endif %}
       {% if proc.outputs %}
       outputs:
       {% for out in proc.outputs %}
-        - {{ out.label }} -> {{ out.src }}
+        - {{ out.src }} -> {{ out.label }}
+      {% endfor %}
       command: {{ proc.command }}
+      {% endif %}
+{% endfor %}
