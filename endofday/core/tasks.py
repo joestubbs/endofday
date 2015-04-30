@@ -136,9 +136,15 @@ class Task(object):
         self.execution = desc.get('execution') or 'local'
         if self.execution == 'agave':
             self.executor = AgaveExecutor(wf_name=wf_name)
+        # eod relative path for this task
+        self.eod_rel_path = os.path.join(wf_name, self.name)
+        # local base path for this task
+        self.base_path = os.path.join(BASE, self.eod_rel_path)
+        if not os.path.exists(self.base_path):
+            os.makedirs(self.base_path)
 
     def audit(self):
-        """Run basic audits on a contstructed task. Work in progress."""
+        """Run basic audits on a constructed task. Work in progress."""
         if not self.name:
             raise Error("Name required for every task.")
         if not self.image:
@@ -150,7 +156,7 @@ class Task(object):
 
     def get_docker_command(self, envs=None):
         """
-        Returns a docker run command for executing either the task image.
+        Returns a docker run command for executing the task image.
         """
         docker_cmd = "docker run --rm"
         # order important here -- need to mount output dirs first so that
