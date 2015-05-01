@@ -28,23 +28,23 @@ def test_create_dir(ae):
     # first, delete the test dir just in case it is already there:
     try:
         # this call blocks until the delete completes or is unsuccessful because it does not exist.
-        ae.ag.files.deleteFromDefaultSystem(sourcefilePath='jstubbs/test_suite_wf')
+        ae.ag.files.delete(systemId=ae.storage_system, filePath='jstubbs/test_suite_wf')
     except:
         pass
     # create the directory:
     ae.create_dir('test_suite_wf/algebra/add_5/data')
     # check that it exists:
-    rsp = ae.ag.files.listOnDefaultSystem(filePath='jstubbs/test_suite_wf')
+    rsp = ae.ag.files.list(systemId=ae.storage_system, filePath=ae.home_dir)
     assert type(rsp) == list
-    rsp = ae.ag.files.listOnDefaultSystem(filePath='jstubbs/test_suite_wf/algebra')
+    rsp = ae.ag.files.list(systemId=ae.storage_system, filePath='jstubbs/test_suite_wf/algebra')
     assert type(rsp) == list
-    rsp = ae.ag.files.listOnDefaultSystem(filePath='jstubbs/test_suite_wf/algebra/add_5')
+    rsp = ae.ag.files.list(systemId=ae.storage_system, filePath='jstubbs/test_suite_wf/algebra/add_5')
     assert type(rsp) == list
 
 def test_upload_file(ae):
     # first, delete the test file just in case it is already there:
     try:
-        ae.ag.files.deleteFromDefaultSystem(sourcefilePath='jstubbs/test_suite_wf/algebra/add_5/sample_input.txt')
+        ae.ag.files.delete(systemId=ae.storage_system, filePath='jstubbs/test_suite_wf/algebra/add_5/sample_input.txt')
     except:
         pass
     # create the test directory
@@ -57,16 +57,22 @@ def test_upload_file(ae):
     # returns an AgaveAsyncResponse - timeout after 120 seconds
     assert rsp.result(120) == 'COMPLETE'
     # check that the file is there:
-    rsp = ae.ag.files.listOnDefaultSystem(filePath='jstubbs/test_suite_wf/algebra/add_5/data')
+    rsp = ae.ag.files.list(systemId=ae.storage_system, filePath='jstubbs/test_suite_wf/algebra/add_5/data')
     assert type(rsp) == list
     result = [r for r in rsp if r['name'] == 'sample_input.txt']
     assert len(result) > 0
 
 def test_download_file(ae):
-    rsp = ae.download_file(local_path=os.path.join(HERE,'sample_input.txt'), remote_path='sample_input.txt')
+    # first, remove file locally in case it is there from a prior run:
+    local_path = os.path.join(HERE,'downloads/sample_input.txt')
+    try:
+        os.rm(local_path)
+    except Exception:
+        pass
+    rsp = ae.download_file(local_path=local_path, remote_path='sample_input.txt')
     assert rsp.get('status') == 'success'
-
-
-
-
+    with open(local_path, 'rb') as f:
+        assert f.readline() == '1\n'
+        assert f.readline() == '2\n'
+        assert f.readline() == '3'
 
