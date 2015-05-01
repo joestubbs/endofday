@@ -24,7 +24,7 @@ def task_file():
 
 def test_basic_task_file_attrs(task_file):
     assert task_file.path == os.path.join(HERE, 'sample_wf.yml')
-    assert task_file.name == 'test_wf'
+    assert task_file.name == 'test_suite_wf'
     assert task_file.executor == 'local'
 
 def test_global_inputs(task_file):
@@ -33,13 +33,13 @@ def test_global_inputs(task_file):
     assert glob_in.label == 'input'
     assert glob_in.host_path == '/home/jstubbs/github-repos/endofday/examples/input.txt'
     assert glob_in.src == '/home/jstubbs/github-repos/endofday/examples/input.txt'
-    assert glob_in.eod_rel_path == os.path.join('test_wf', 'global_inputs', 'input.txt')
+    assert glob_in.eod_rel_path == os.path.join('test_suite_wf', 'global_inputs', 'input.txt')
 
     glob_in = task_file.global_inputs[1]
     assert glob_in.label == 'loc_in'
     assert glob_in.host_path == '/staging/loc_in.txt'
     assert glob_in.src == 'loc_in.txt'
-    assert glob_in.eod_rel_path == os.path.join('test_wf', 'global_inputs', 'loc_in.txt')
+    assert glob_in.eod_rel_path == os.path.join('test_suite_wf', 'global_inputs', 'loc_in.txt')
 
 def test_tasks_length(task_file):
     assert len(task_file.tasks) == 3
@@ -76,32 +76,32 @@ def test_add_5_outputs(task_file):
     assert out.src == '/data/output.txt'
     assert out.label == 'output'
     assert out.task_name == 'add_5'
-    assert out.eod_rel_path == 'test_wf/add_5/data/output.txt'
-    assert out.eod_rel_dir_path == 'test_wf/add_5/data'
-    assert out.host_path == '/staging/test_wf/add_5/data/output.txt'
-    assert out.host_dir_path == '/staging/test_wf/add_5/data'
+    assert out.eod_rel_path == 'test_suite_wf/add_5/data/output.txt'
+    assert out.eod_rel_dir_path == 'test_suite_wf/add_5/data'
+    assert out.host_path == '/staging/test_suite_wf/add_5/data/output.txt'
+    assert out.host_dir_path == '/staging/test_suite_wf/add_5/data'
 
 def test_add_5_volume_dirs(task_file):
     task = task_file.tasks[0]
     assert len(task.volume_dirs) == 1
     vdir = task.volume_dirs[0]
     assert vdir.container_path == '/data'
-    assert vdir.eod_rel_path == 'test_wf/add_5/data'
-    assert vdir.host_path == '/staging/test_wf/add_5/data'
+    assert vdir.eod_rel_path == 'test_suite_wf/add_5/data'
+    assert vdir.host_path == '/staging/test_suite_wf/add_5/data'
 
 def test_add_5_input_volumes(task_file):
     task = task_file.tasks[0]
     assert len(task.input_volumes) == 1
     inpv = task.input_volumes[0]
     assert inpv.container_path == '/data/input.txt'
-    assert inpv.eod_rel_path == 'test_wf/global_inputs/input.txt'
+    assert inpv.eod_rel_path == 'test_suite_wf/global_inputs/input.txt'
     assert inpv.host_path == '/home/jstubbs/github-repos/endofday/examples/input.txt'
 
 
 def test_add_5_docker_command(task_file):
     task = task_file.tasks[0]
     cmd, _, _ = task.get_docker_command()
-    assert cmd == 'docker run --rm -v /staging/test_wf/add_5/data:/data -v /home/jstubbs/github-repos/endofday/examples/input.txt:/data/input.txt jstubbs/add_n python add_n.py -i 5'
+    assert cmd == 'docker run --rm -v /staging/test_suite_wf/add_5/data:/data -v /home/jstubbs/github-repos/endofday/examples/input.txt:/data/input.txt jstubbs/add_n python add_n.py -i 5'
 
 
 # mult_3 tests
@@ -130,58 +130,58 @@ def test_mult_3_outputs(task_file):
     assert out.src == '/tmp/foo/bar/output'
     assert out.label == 'output1'
     assert out.task_name == 'mult_3'
-    assert out.eod_rel_path == 'test_wf/mult_3/tmp/foo/bar/output'
-    assert out.eod_rel_dir_path == 'test_wf/mult_3/tmp/foo/bar'
-    assert out.host_path == '/staging/test_wf/mult_3/tmp/foo/bar/output'
-    assert out.host_dir_path == '/staging/test_wf/mult_3/tmp/foo/bar'
+    assert out.eod_rel_path == 'test_suite_wf/mult_3/tmp/foo/bar/output'
+    assert out.eod_rel_dir_path == 'test_suite_wf/mult_3/tmp/foo/bar'
+    assert out.host_path == '/staging/test_suite_wf/mult_3/tmp/foo/bar/output'
+    assert out.host_dir_path == '/staging/test_suite_wf/mult_3/tmp/foo/bar'
 
     out = task.outputs[1]
     assert out.src == '/tmp/foo/baz/output'
     assert out.label == 'output2'
     assert out.task_name == 'mult_3'
-    assert out.eod_rel_path == 'test_wf/mult_3/tmp/foo/baz/output'
-    assert out.eod_rel_dir_path == 'test_wf/mult_3/tmp/foo/baz'
-    assert out.host_path == '/staging/test_wf/mult_3/tmp/foo/baz/output'
-    assert out.host_dir_path == '/staging/test_wf/mult_3/tmp/foo/baz'
+    assert out.eod_rel_path == 'test_suite_wf/mult_3/tmp/foo/baz/output'
+    assert out.eod_rel_dir_path == 'test_suite_wf/mult_3/tmp/foo/baz'
+    assert out.host_path == '/staging/test_suite_wf/mult_3/tmp/foo/baz/output'
+    assert out.host_dir_path == '/staging/test_suite_wf/mult_3/tmp/foo/baz'
 
     out = task.outputs[2]
     assert out.src == '/tmp/foo/output'
     assert out.label == 'output3'
     assert out.task_name == 'mult_3'
-    assert out.eod_rel_path == 'test_wf/mult_3/tmp/foo/output'
-    assert out.eod_rel_dir_path == 'test_wf/mult_3/tmp/foo'
-    assert out.host_path == '/staging/test_wf/mult_3/tmp/foo/output'
-    assert out.host_dir_path == '/staging/test_wf/mult_3/tmp/foo'
+    assert out.eod_rel_path == 'test_suite_wf/mult_3/tmp/foo/output'
+    assert out.eod_rel_dir_path == 'test_suite_wf/mult_3/tmp/foo'
+    assert out.host_path == '/staging/test_suite_wf/mult_3/tmp/foo/output'
+    assert out.host_dir_path == '/staging/test_suite_wf/mult_3/tmp/foo'
 
     out = task.outputs[3]
     assert out.src == '/tmp/output'
     assert out.label == 'output'
     assert out.task_name == 'mult_3'
-    assert out.eod_rel_path == 'test_wf/mult_3/tmp/output'
-    assert out.eod_rel_dir_path == 'test_wf/mult_3/tmp'
-    assert out.host_path == '/staging/test_wf/mult_3/tmp/output'
-    assert out.host_dir_path == '/staging/test_wf/mult_3/tmp'
+    assert out.eod_rel_path == 'test_suite_wf/mult_3/tmp/output'
+    assert out.eod_rel_dir_path == 'test_suite_wf/mult_3/tmp'
+    assert out.host_path == '/staging/test_suite_wf/mult_3/tmp/output'
+    assert out.host_dir_path == '/staging/test_suite_wf/mult_3/tmp'
 
 def test_mult_3_volume_dirs(task_file):
     task = task_file.tasks[1]
     assert len(task.volume_dirs) == 1
     vdir = task.volume_dirs[0]
     assert vdir.container_path == '/tmp'
-    assert vdir.eod_rel_path == 'test_wf/mult_3/tmp'
-    assert vdir.host_path == '/staging/test_wf/mult_3/tmp'
+    assert vdir.eod_rel_path == 'test_suite_wf/mult_3/tmp'
+    assert vdir.host_path == '/staging/test_suite_wf/mult_3/tmp'
 
 def test_mult_3_input_volumes(task_file):
     task = task_file.tasks[1]
     assert len(task.input_volumes) == 1
     inpv = task.input_volumes[0]
     assert inpv.container_path == '/tmp/input'
-    assert inpv.eod_rel_path == 'test_wf/add_5/data/output.txt'
-    assert inpv.host_path == '/staging/test_wf/add_5/data/output.txt'
+    assert inpv.eod_rel_path == 'test_suite_wf/add_5/data/output.txt'
+    assert inpv.host_path == '/staging/test_suite_wf/add_5/data/output.txt'
 
 def test_mult_3_docker_command(task_file):
     task = task_file.tasks[1]
     cmd, _, _ = task.get_docker_command()
-    assert cmd == 'docker run --rm -v /staging/test_wf/mult_3/tmp:/tmp -v /staging/test_wf/add_5/data/output.txt:/tmp/input jstubbs/mult_n python mult_n.py -f 3'
+    assert cmd == 'docker run --rm -v /staging/test_suite_wf/mult_3/tmp:/tmp -v /staging/test_suite_wf/add_5/data/output.txt:/tmp/input jstubbs/mult_n python mult_n.py -f 3'
 
 # sum tests
 def test_sum_task_basic(task_file):
