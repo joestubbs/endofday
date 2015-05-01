@@ -77,7 +77,7 @@ def test_job(ae, task_file):
     wf_input = job_json.get('inputs').get('wf')
     assert len(wf_input) == 1
     wf = wf_input[0]
-    assert wf == 'agave://data.iplantcollaborative.org//jstubbs/test_suite_wf/add_5/add_5.yml'
+    assert wf == 'agave://' + ae.storage_system + '//jstubbs/test_suite_wf/add_5/add_5.yml'
     glob_inputs = job_json.get('inputs').get('glob_in')
     assert len(glob_inputs) == 1
-    assert glob_inputs[0] == 'agave://data.iplantcollaborative.org//jstubbs/test_suite_wf/global_inputs/input.txt'
+    assert glob_inputs[0] == 'agave://' + ae.storage_system + '//jstubbs/test_suite_wf/global_inputs/input.txt'
