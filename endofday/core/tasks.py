@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 from collections import OrderedDict
+import requests
 import yaml
 
 from doit.task import dict_to_task
@@ -16,13 +17,7 @@ from .executors import AgaveAsyncResponse, AgaveExecutor
 
 # working directory for endofday
 BASE = os.environ.get('STAGING_DIR') or '/staging'
-
-# are we running in docker
-RUNNING_IN_DOCKER = False
-if os.environ.get('RUNNING_IN_DOCKER'):
-    RUNNING_IN_DOCKER = True
-# the base directory for the endofday docker container
-DOCKER_BASE = '/staging'
+from .docker import RUNNING_IN_DOCKER, DOCKER_BASE
 
 # global tasks list to pass to the DockerLoader
 tasks = []
@@ -68,6 +63,13 @@ class Volume(object):
         if not self.host_path:
             self.host_path = os.path.join(BASE, eod_rel_path)
         self.container_path = container_path
+        if BASE in self.host_path:
+            self.docker_host_path = self.host_path.replace(BASE, '/staging')
+        elif self.host_path.startswith('/'):
+            # global input that is not in the staging dir so look in /host
+            self.docker_host_path = os.path.join('/host', self.host_path[1:])
+        else:
+            self.docker_host_path = os.path.join('/host', self.host_path)
 
 
 class TaskInput(object):
@@ -138,10 +140,15 @@ class Task(object):
             self.executor = AgaveExecutor(wf_name=wf_name)
         # eod relative path for this task
         self.eod_rel_path = os.path.join(wf_name, self.name)
+        self.docker_host_path = os.path.join('/staging', self.eod_rel_path)
         # local base path for this task
         self.base_path = os.path.join(BASE, self.eod_rel_path)
-        if not os.path.exists(self.base_path):
-            os.makedirs(self.base_path)
+        if RUNNING_IN_DOCKER:
+            if not os.path.exists(self.docker_host_path):
+                os.makedirs(self.docker_host_path)
+        else:
+            if not os.path.exists(self.base_path):
+                os.makedirs(self.base_path)
 
     def audit(self):
         """Run basic audits on a constructed task. Work in progress."""
@@ -193,9 +200,14 @@ class Task(object):
             """
             # first, create the directories locally
             for dir in self.volume_dirs:
-                if not os.path.exists(dir.host_path):
-                    print "creating: ", dir.host_path
-                    os.makedirs(dir.host_path)
+                if RUNNING_IN_DOCKER:
+                    if not os.path.exists(dir.docker_host_path):
+                        print "creating: ", dir.docker_host_path
+                        os.makedirs(dir.docker_host_path)
+                else:
+                    if not os.path.exists(dir.host_path):
+                        print "creating: ", dir.host_path
+                        os.makedirs(dir.host_path)
             docker_cmd, _, _ = self.get_docker_command()
             # now, execute the container
             proc = subprocess.Popen(docker_cmd, shell=True)
@@ -302,13 +314,7 @@ class Task(object):
         if RUNNING_IN_DOCKER:
             # pydoit paths need to refer to the endofday container if endofday is running in docker:
             for volume in self.input_volumes:
-                if BASE in volume.host_path:
-                    file_deps.append(volume.host_path.replace(BASE, '/staging'))
-                elif volume.host_path.startswith('/'):
-                    # global input that is not in the staging dir so look in /host
-                    file_deps.append(os.path.join('/host', volume.host_path[1:]))
-                else:
-                    file_deps.append(os.path.join('/host', volume.host_path))
+                file_deps.append(volume.docker_host_path)
             for output in self.outputs:
                 if BASE in output.host_path:
                     targets.append(output.host_path.replace(BASE, '/staging'))
@@ -326,10 +332,10 @@ class Task(object):
             'targets': targets,
             'file_dep': file_deps,
         }
-        if verbose:
-            print "BASE:", BASE
-            print "file_deps:", str(file_deps)
-            print "outputs:", str(targets)
+        print "Task:", self.name
+        print "BASE:", BASE
+        print "file_deps:", str(file_deps)
+        print "outputs:", str(targets)
 
 class DockerLoader(TaskLoader):
     @staticmethod
@@ -452,6 +458,7 @@ def main(yaml_file):
     sys.exit(DoitMain(DockerLoader()).run(sys.argv[2:]))
 
 if __name__ == '__main__':
+    requests.packages.urllib3.disable_warnings()
     parser = argparse.ArgumentParser(description='Execute workflow of docker containers described in a yaml file.')
     parser.add_argument('yaml_file', type=str,
                         help='Yaml file to parse')
