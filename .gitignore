@@ -57,7 +57,7 @@ docs/_build/
 target/
 
 # PyCharm
-.idea/c
+.idea/
 
 # sensitive files
 endofday/endofday-iplant.conf
