@@ -16,7 +16,7 @@ outputs:
 
 processes:
 {% for proc in processes %}
-  - {{ proc.name }}:
+   {{ proc.name }}:
       image: {{ proc.image }}
       {% if proc.inputs %}
       inputs:

@@ -56,11 +56,10 @@ def test_gen_task_defn(ae, task_file):
     inp = task_yml.get('inputs')[0]
     assert inp == 'input_0 <- input.txt'
     procs = task_yml.get('processes')
-    assert len(procs) == 1
-    proc = procs[0]
+    assert not procs.get('add_5') is None
+    src = procs.get('add_5')
     # print proc
     # import pdb; pdb.set_trace()
-    src = proc.get('add_5')
     assert src.get('image') == 'jstubbs/add_n'
     assert len(src.get('inputs')) == 1
     assert src.get('inputs')[0] == 'inputs.input_0 -> /data/input.txt'
