@@ -60,5 +60,5 @@ target/
 .idea/c
 
 # sensitive files
-endofday-iplant.conf
-endofday-tacc.conf
+endofday/endofday-iplant.conf
+endofday/endofday-tacc.conf
