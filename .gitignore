@@ -58,3 +58,7 @@ target/
 
 # PyCharm
 .idea/
+
+# sensitive files
+endofday/endofday-iplant.conf
+endofday/endofday-tacc.conf
