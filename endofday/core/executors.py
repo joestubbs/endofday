@@ -119,6 +119,7 @@ class AgaveExecutor(object):
             home_dir = self.home_dir
         if verify is None:
             verify = self.verify
+        print "Constructing executor for: ", url
         self.ag = Agave(api_server=url, username=username, password=password,
                         client_name=client_name, api_key=client_key, api_secret=client_secret, verify=verify)
         self.storage_system = storage_system
@@ -227,7 +228,7 @@ class AgaveExecutor(object):
         with open(local_path, 'wb') as f:
             rsp = self.ag.files.download(systemId=self.storage_system, filePath=path)
             if type(rsp) == dict:
-                raise Error("Error downloading file at path: " + remote_path + ", filePath:", path, ". Response: " + str(rsp))
+                raise Error("Error downloading file at path: " + remote_path + ", filePath:"+ path+ ". Response: " + str(rsp))
             for block in rsp.iter_content(1024):
                 if not block:
                     break
