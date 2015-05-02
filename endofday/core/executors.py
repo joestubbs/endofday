@@ -10,6 +10,7 @@ import jinja2
 
 from .error import Error
 from .config import Config
+from .docker import RUNNING_IN_DOCKER
 from .template import ConfigGen
 
 JOB_TEMPLATE = 'job.j2'
@@ -54,6 +55,9 @@ class AgaveAsyncResponse(object):
         # jobs end in 'finished' status
         elif len([x for x in result if 'FINISHED' in x['status']]) > 0:
             self.status = 'COMPLETE'
+        # job ended in 'failed' status
+        elif len([x for x in result if 'FAILED' in x['status']]) > 0:
+            self.status = 'FAILED'
         else:
             # sort on creation time of the history object
             result = sorted(result, key=lambda k: k['created'])
@@ -123,6 +127,9 @@ class AgaveExecutor(object):
         # default the home directory to the username
         if not self.home_dir:
             self.home_dir = username
+        # get the home dir for the system itself:
+        rsp = self.ag.systems.get(systemId=storage_system)
+        self.system_homedir = rsp.get('storage').get('homeDir')
         self.working_dir = os.path.join(self.home_dir, wf_name)
         # create the working directory now
         try:
@@ -159,6 +166,8 @@ class AgaveExecutor(object):
         self.verify = Config.get('agave', 'verify')
         if self.verify == 'False':
             self.verify = False
+        if self.verify == 'True':
+            self.verify = True
         self.client_key = Config.get('agave', 'client_key')
         self.client_secret = Config.get('agave', 'client_secret')
         if not self.client_secret:
@@ -198,8 +207,12 @@ class AgaveExecutor(object):
                                            filePath=sourcefilePath,
                                            fileToUpload=open(local_path,'rb'))
         except Exception as e:
-            raise Error("Upload to default storage failed - local_path: " + local_path +
-                        "; remote_path: " + remote_path + "; Msg:" + str(e))
+            raise Error("Exception on file upload - local_path: " + local_path +
+                        "; remote_path: " + remote_path + ' sourceFilePath: ' + sourcefilePath + "; e:" + str(e))
+        # something went wrong
+        if type(rsp) == dict:
+            raise Error('Unexpected response on file upload - local_path: ' + local_path +
+                        '; remote_path: ' + remote_path + ' sourceFilePath: ' + sourcefilePath + '. Response:' + str(rsp))
         return AgaveAsyncResponse(self.ag, rsp)
 
     def download_file(self, local_path, remote_path):
@@ -209,15 +222,17 @@ class AgaveExecutor(object):
         """
         if remote_path.startswith('/'):
             remote_path = remote_path[1:]
-        path = os.path.join(self.home_dir, remote_path)
+        path = os.path.join(self.system_homedir, self.home_dir, remote_path)
+        print "Downloading file from:", remote_path, " to:", local_path, "..."
         with open(local_path, 'wb') as f:
             rsp = self.ag.files.download(systemId=self.storage_system, filePath=path)
             if type(rsp) == dict:
-                raise Error("Error downloading file at path: " + remote_path + ". Response: " + str(rsp))
+                raise Error("Error downloading file at path: " + remote_path + ", filePath:", path, ". Response: " + str(rsp))
             for block in rsp.iter_content(1024):
                 if not block:
                     break
                 f.write(block)
+        print "Download successful."
         return {'status': 'success'}
 
     def create_volumes(self, task):
@@ -226,9 +241,13 @@ class AgaveExecutor(object):
         container execution.
         """
         for dir in task.volume_dirs:
-            if not os.path.exists(dir.host_path):
-                print "creating: ", dir.host_path
-                os.makedirs(dir.host_path)
+            if RUNNING_IN_DOCKER:
+                path = dir.docker_host_path
+            else:
+                path = dir.host_path
+            if not os.path.exists(path):
+                print "locally creating: ", path
+                os.makedirs(path)
         # create directories in the remote storage:
         for dir in task.volume_dirs:
             self.create_dir(path=dir.eod_rel_path)
@@ -239,8 +258,17 @@ class AgaveExecutor(object):
         """
         responses = []
         for inpv in task.input_volumes:
-            print "Uploading file", inpv.host_path, "to remote storage location:", inpv.eod_rel_path
-            rsp = self.upload_file(local_path=inpv.host_path, remote_path=inpv.eod_rel_path)
+            if RUNNING_IN_DOCKER:
+                local_path = inpv.docker_host_path
+            else:
+                local_path = inpv.host_path
+            remote_dir = inpv.eod_rel_path
+            if not remote_dir[-1] == '/':
+                remote_dir = os.path.split(remote_dir)[0]
+            print "creating remote directory for input:", local_path, "remote dir path:", remote_dir
+            self.create_dir(remote_dir)
+            print "Uploading file", local_path, "to remote storage location:", inpv.eod_rel_path
+            rsp = self.upload_file(local_path=local_path, remote_path=remote_dir)
             responses.append(rsp)
         # block until transfers complete
         for rsp in responses:
@@ -293,7 +321,11 @@ class AgaveExecutor(object):
         conf = ConfigGen(EOD_TEMPLATE)
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
         # store yaml locally of the form <task.name>.yml
-        path = os.path.join(task.base_path, task.name + '.yml')
+        if RUNNING_IN_DOCKER:
+            path = os.path.join(task.docker_host_path, task.name + '.yml')
+        else:
+            path = os.path.join(task.base_path, task.name + '.yml')
+        print "Generating eod file for task:", task.name, ' in:', path
         conf.generate_conf(context, path, env)
         return path
 
@@ -339,20 +371,28 @@ class AgaveExecutor(object):
             self.upload_inputs(task)
             self.upload_task_defn(task)
             rsp = self.submit_job(task)
+            print "Job submitted successfully. URL:", rsp.url
             # block until job completes
             result = rsp.result()
             if not result == 'COMPLETE':
                 raise Error("Job for task: " + task.name + " failed to complete. Job status: " + result + ". URL: " + rsp.url)
+            print "Job completed."
             # download results:
             base_path = rsp.response.get('archivePath').strip(self.home_dir)
+            print "Base archive path: ", base_path
             if base_path[0] == '/':
                 base_path = base_path[1:]
             for output in task.outputs:
-                local_path = os.path.join(task.base_path, output.src)
+                local_path = os.path.join(task.base_path, output.src[1:])
+                if RUNNING_IN_DOCKER:
+                    local_path = os.path.join(task.docker_host_path, output.src[1:])
                 # remote path is: <username>/<job-dir>/<wf_name>/<task_name>/<output>
                 # base_path contains <username>/<job-dir>; wf_name == task_name
-                remote_path = os.path.join(base_path, task.name, task.name, output.src)
-                self.download_file(local_path=local_path, remote_path=remote_path)
+                remote_path = os.path.join(base_path, task.name, task.name, output.src[1:])
+                try:
+                    self.download_file(local_path=local_path, remote_path=remote_path)
+                except Error as e:
+                    print "Error downloading file. Job rsp: ", str(rsp), " Error: ", str(e)
 
         return action_fn
 
@@ -365,7 +405,7 @@ class AgaveExecutor(object):
         conf = ConfigGen(JOB_TEMPLATE)
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
         inputs = []
-        input_base = 'agave://' + self.storage_system + '//'
+        input_base = 'agave://' + self.storage_system + '/' + self.system_homedir + '/'
         wf_path = input_base + os.path.join(self.home_dir, task.eod_rel_path, task.name + '.yml')
         for inpv in task.input_volumes:
             inp = {'path_str': input_base + os.path.join(self.home_dir, inpv.eod_rel_path) + ','}
@@ -375,7 +415,8 @@ class AgaveExecutor(object):
         context = {'wf_name': self.wf_name,
                    'task_name': task.name,
                    'global_inputs': inputs,
-                   'wf_path': wf_path}
+                   'wf_path': wf_path,
+                   'system_id': self.storage_system}
         return conf.compile(context, env)
 
     def submit_job(self, task):
@@ -384,8 +425,11 @@ class AgaveExecutor(object):
         :return:
         """
         job = self.get_job(task)
+        print "Submitting job: ", str(job)
         try:
             rsp = self.ag.jobs.submit(body=job)
         except Exception as e:
-            raise Error("Error trying to submit job for task: " + task.name + '. Exception: ' + str(e))
+            raise Error("Exception trying to submit job for task: " + task.name + ' job: ' + str(job) + '. Exception: ' + str(e))
+        if type(rsp) == dict:
+            raise Error("Error trying to submit job for task: " + task.name + ' job: ' + str(job) + '. Response: ' + str(rsp))
         return AgaveAsyncResponse(self.ag, rsp)
