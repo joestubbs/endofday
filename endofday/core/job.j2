@@ -9,11 +9,33 @@
   },
   "archive": true,
   "archiveSystem": "{{ system_id }}",
+  {% if email %}
   "notifications": [
     {
-      "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
-      "event": "*",
+      "url": "{{ email }}",
+      "event": "FINISHED",
+      "persistent": true
+    },
+    {
+      "url": "{{ email }}",
+      "event": "FAILED",
+      "persistent": true
+    },
+    {
+      "url": "{{ email }}",
+      "event": "KILLED",
+      "persistent": true
+    },
+    {
+      "url": "{{ email }}",
+      "event": "STOPPED",
+      "persistent": true
+    },
+    {
+      "url": "{{ email }}",
+      "event": "RUNNING",
       "persistent": true
     }
   ]
+  {% endif %}
 }

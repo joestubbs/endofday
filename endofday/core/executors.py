@@ -177,6 +177,7 @@ class AgaveExecutor(object):
         if not self.storage_system:
             self.storage_system = 'data.iplantcollaborative.org'
         self.home_dir = Config.get('agave', 'home_dir')
+        self.email = Config.get('agave', 'email')
 
     def create_dir(self, path):
         """Create a directory on the configured storage system inside the endofday home dir. The path argument
@@ -418,6 +419,8 @@ class AgaveExecutor(object):
                    'global_inputs': inputs,
                    'wf_path': wf_path,
                    'system_id': self.storage_system}
+        if self.email:
+            context['email'] = self.email
         return conf.compile(context, env)
 
     def submit_job(self, task):
