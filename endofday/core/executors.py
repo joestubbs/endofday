@@ -10,7 +10,7 @@ import jinja2
 
 from .error import Error
 from .config import Config
-from .docker import RUNNING_IN_DOCKER
+from .docker import RUNNING_IN_DOCKER, DOCKER_BASE
 from .template import ConfigGen
 
 JOB_TEMPLATE = 'job.j2'
@@ -314,7 +314,7 @@ class AgaveExecutor(object):
 
     def gen_task_defn(self, task):
         """
-        Generates an eod yaml file for running a single task on Agave cloud, and uploads the file to remote storage.
+        Generates an eod yaml file for running a single task in Agave cloud, and uploads the file to remote storage.
         Returns path of the file stored locally.
         :param task:
         :return:
@@ -328,6 +328,49 @@ class AgaveExecutor(object):
         else:
             path = os.path.join(task.base_path, task.name + '.yml')
         print "Generating eod file for task:", task.name, ' in:', path
+        conf.generate_conf(context, path, env)
+        return path
+
+    def get_taskfile_context(self, taskfile):
+        """
+        Creates the context dictionary for generating an eod yaml file for running an entire workflow in Agave.
+        :param task:
+        :return:
+        """
+        context = {}
+        context['wf_name'] = taskfile.name
+        # create a global input for each input to the task
+        context['global_inputs'] = []
+        for gin in taskfile.global_inputs:
+            inp = {'src': os.path.split(gin.src)[1], 'label': gin.label}
+            context['global_inputs'].append(inp)
+        # processes = [task for task in taskfile.tasks]
+        processes = {}
+        for task in taskfile.tasks:
+            process = {'image':task.image, 'command': task.command}
+            process['inputs'] = []
+            for inpv in task.inputs:
+                inp = {'label': inpv.src, 'dest': inpv.dest}
+                process['inputs'].append(inp)
+            process['outputs'] = []
+            for output in task.outputs:
+                process['outputs'].append({'src':output.src, 'label': output.label})
+            processes[task.name] = process
+        context['processes'] = processes
+        print str(context)
+
+    def get_taskfile(self, taskfile):
+        """
+        Generates an eod yaml file for running an entire eod workflow in the Agave cloud.
+        :param taskfile:
+        :return:
+        """
+        context = self.get_taskfile_context(taskfile)
+        conf = ConfigGen(EOD_TEMPLATE)
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
+        # store yaml locally in taskfile workdir:
+        path = taskfile.work_dir
+        print "Generating eod file for taskfile:", taskfile.name, ' in:', path
         conf.generate_conf(context, path, env)
         return path
 
@@ -422,6 +465,31 @@ class AgaveExecutor(object):
         if self.email:
             context['email'] = self.email
         return conf.compile(context, env)
+
+    def get_job_for_wf(self, taskfile):
+        """
+        Returns JSON description of an endofday job for entire wf after compiling the job.j2 template.
+        :param task:
+        :return:
+        """
+        conf = ConfigGen(JOB_TEMPLATE)
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
+        inputs = []
+        input_base = 'agave://' + self.storage_system + '/' + self.system_homedir + '/'
+        wf_path = input_base + os.path.join(self.home_dir, taskfile.name + '.yml')
+        for gin in taskfile.global_inputs:
+            inp = {'path_str': input_base + os.path.join(self.home_dir, 'global_inputs', os.path.split(gin.src)[1]) + ','}
+            inputs.append(inp)
+        # remove trailing comma from last entry:
+        inputs[-1]['path_str'] = inputs[-1]['path_str'][:-1]
+        context = {'wf_name': self.wf_name,
+                   'global_inputs': inputs,
+                   'wf_path': wf_path,
+                   'system_id': self.storage_system}
+        if self.email:
+            context['email'] = self.email
+        return conf.compile(context, env)
+
 
     def submit_job(self, task):
         """

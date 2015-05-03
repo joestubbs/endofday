@@ -44,9 +44,12 @@ class GlobalInput(object):
         # For composition, and in particular, for this, we'll need a mechanism
         # for referencing an external workflow object.
         self.host_path = self.src
+        self.docker_host_path = self.src.replace(BASE, '/staging')
         # support relative paths for global inputs
         if not self.host_path.startswith('/'):
             self.host_path = os.path.join(BASE, self.host_path)
+        if not self.docker_host_path.startswith('/'):
+            self.docker_host_path = os.path.join('staging', self.docker_host_path)
         # todo - need a way to resolve the workflow's label to a host path.
         self.eod_rel_path = os.path.join(wf_name, 'global_inputs', os.path.split(src)[1])
 
@@ -373,6 +376,9 @@ class TaskFile(object):
         self.basic_audits()
         self.get_top_level_objects()
         self.top_level_audits()
+        self.work_dir = os.path.join(BASE, self.name)
+        if RUNNING_IN_DOCKER:
+            self.work_dir = os.path.join(DOCKER_BASE, self.name)
         self.executor = 'local'
         # create an agave executor
         if Config.get('execution', 'execution') == 'agave':
