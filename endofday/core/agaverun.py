@@ -48,12 +48,12 @@ def submit_job(task_file):
     job = task_file.ae.get_job_for_wf(task_file)
     print "Submitting job: ", str(job)
     try:
-        rsp = task_file.ag.jobs.submit(body=job)
+        rsp = task_file.ae.ag.jobs.submit(body=job)
     except Exception as e:
         raise Error('Exception trying to submit job: ' + str(job) + '. Exception: ' + str(e))
     if type(rsp) == dict:
         raise Error('Error trying to submit job: ' + str(job) + '. Response: ' + str(rsp))
-    return AgaveAsyncResponse(task_file.ag, rsp)
+    return AgaveAsyncResponse(task_file.ae.ag, rsp)
 
 
 def main(yaml_file):
@@ -76,4 +76,3 @@ if __name__ == '__main__':
     parser.set_defaults(verbose=False)
     args = parser.parse_args()
     main(args.yaml_file)
-    main()

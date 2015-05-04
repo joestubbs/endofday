@@ -345,9 +345,9 @@ class AgaveExecutor(object):
             inp = {'src': os.path.split(gin.src)[1], 'label': gin.label}
             context['global_inputs'].append(inp)
         # processes = [task for task in taskfile.tasks]
-        processes = {}
+        processes = []
         for task in taskfile.tasks:
-            process = {'image':task.image, 'command': task.command}
+            process = {'name': task.name, 'image':task.image, 'command': task.command}
             process['inputs'] = []
             for inpv in task.inputs:
                 inp = {'label': inpv.src, 'dest': inpv.dest}
@@ -355,9 +355,9 @@ class AgaveExecutor(object):
             process['outputs'] = []
             for output in task.outputs:
                 process['outputs'].append({'src':output.src, 'label': output.label})
-            processes[task.name] = process
+            processes.append(process)
         context['processes'] = processes
-        print str(context)
+        return context
 
     def get_taskfile(self, taskfile):
         """
@@ -369,8 +369,9 @@ class AgaveExecutor(object):
         conf = ConfigGen(EOD_TEMPLATE)
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
         # store yaml locally in taskfile workdir:
-        path = taskfile.work_dir
+        path = os.path.join(taskfile.work_dir, taskfile.name + '.yml')
         print "Generating eod file for taskfile:", taskfile.name, ' in:', path
+        print "context:", str(context)
         conf.generate_conf(context, path, env)
         return path
 
@@ -476,9 +477,9 @@ class AgaveExecutor(object):
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
         inputs = []
         input_base = 'agave://' + self.storage_system + '/' + self.system_homedir + '/'
-        wf_path = input_base + os.path.join(self.home_dir, taskfile.name + '.yml')
+        wf_path = input_base + os.path.join(self.home_dir, taskfile.name, taskfile.name + '.yml')
         for gin in taskfile.global_inputs:
-            inp = {'path_str': input_base + os.path.join(self.home_dir, 'global_inputs', os.path.split(gin.src)[1]) + ','}
+            inp = {'path_str': input_base + os.path.join(self.home_dir, taskfile.name, 'global_inputs', os.path.split(gin.src)[1]) + ','}
             inputs.append(inp)
         # remove trailing comma from last entry:
         inputs[-1]['path_str'] = inputs[-1]['path_str'][:-1]
