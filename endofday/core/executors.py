@@ -371,7 +371,6 @@ class AgaveExecutor(object):
         # store yaml locally in taskfile workdir:
         path = os.path.join(taskfile.work_dir, taskfile.name + '.yml')
         print "Generating eod file for taskfile:", taskfile.name, ' in:', path
-        print "context:", str(context)
         conf.generate_conf(context, path, env)
         return path
 
@@ -479,7 +478,14 @@ class AgaveExecutor(object):
         input_base = 'agave://' + self.storage_system + '/' + self.system_homedir + '/'
         wf_path = input_base + os.path.join(self.home_dir, taskfile.name, taskfile.name + '.yml')
         for gin in taskfile.global_inputs:
-            inp = {'path_str': input_base + os.path.join(self.home_dir, taskfile.name, 'global_inputs', os.path.split(gin.src)[1]) + ','}
+            # URIs get passed 'as is' to Agave:
+            if '://' in gin.src:
+                path_str = gin.src
+            else:
+                path_str = input_base + os.path.join(self.home_dir,
+                                                     taskfile.name,
+                                                     'global_inputs', os.path.split(gin.src)[1])
+            inp = {'path_str': path_str + ','}
             inputs.append(inp)
         # remove trailing comma from last entry:
         inputs[-1]['path_str'] = inputs[-1]['path_str'][:-1]

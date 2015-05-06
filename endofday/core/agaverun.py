@@ -20,7 +20,8 @@ def upload_inputs(task_file):
     if not len(inp_names) == len(set(inp_names)):
         raise Error("For remote executions, the global inputs must have unique names.")
     for inp in task_file.global_inputs:
-        if inp.src.startswith('agave://'):
+        # URIs will be passed directly to the Agave job
+        if '://' in inp.src:
             continue
         local_path = inp.host_path
         if RUNNING_IN_DOCKER:
@@ -46,7 +47,7 @@ def upload_yml(tasl_file):
 
 def submit_job(task_file):
     job = task_file.ae.get_job_for_wf(task_file)
-    print "Submitting job: ", str(job)
+    print "Submitting job..."
     try:
         rsp = task_file.ae.ag.jobs.submit(body=job)
     except Exception as e:
@@ -65,7 +66,18 @@ def main(yaml_file):
     upload_inputs(task_file)
     upload_yml(task_file)
     rsp = submit_job(task_file)
-    print "Response:", str(rsp)
+    if rsp.response.get('id'):
+        print 'Job submitting successfully. The id for your job is: ', rsp.response.get('id')
+        print 'You can check the status history of your job by making an authenticated request to: ', \
+            rsp.response.get('_links').get('history').get('href')
+        print 'When the execution finishes, results will be archived to: ', rsp.response.get('archivePath'), \
+            'on the storage system: ', rsp.response.get('archiveSystem')
+        if task_file.ae.email:
+            print 'An email will be sent to', task_file.ae.email, 'when archiving is complete.'
+    else:
+        print "There was an error submitting your job. Here's the response Agave returned: ", str(rsp)
+        print "Here's the JSON document used to submit your job: ", str(task_file.ae.get_job_for_wf(task_file))
+
 
 if __name__ == '__main__':
     requests.packages.urllib3.disable_warnings()
