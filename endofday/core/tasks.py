@@ -49,7 +49,7 @@ class GlobalInput(object):
         if not self.host_path.startswith('/'):
             self.host_path = os.path.join(BASE, self.host_path)
         if not self.docker_host_path.startswith('/'):
-            self.docker_host_path = os.path.join('staging', self.docker_host_path)
+            self.docker_host_path = os.path.join('/staging', self.docker_host_path)
         # todo - need a way to resolve the workflow's label to a host path.
         self.eod_rel_path = os.path.join(wf_name, 'global_inputs', os.path.split(src)[1])
 
