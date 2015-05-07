@@ -60,10 +60,10 @@ the circle to the area of the square is
        \pi*r^2/ (2r)^2 = \pi*r^2/4r^2 = \pi/4
 
 Therefore, we can approximate pi as 4 times an approximation of (area of circle)/(area of square). We can approximate
-the ratio of the areas by randomly picking coordinates (x,y) in [0,1] in determining if they are in the circle by
-checking the algebraic equation for a circle we all learned in elementary: x^2 + y^2 = 1. The
-ratio of the areas will then be well approximated by the ratio of points in the circle to points outside of the circle
-for a sufficiently large selection of coordinates.
+the ratio of the areas by randomly picking coordinates (x,y) in [0,1] and determining if they are in the circle by
+checking the algebraic equation for a circle we all learned in elementary school: x^2 + y^2 <= 1. The
+ratio of the areas will then be well approximated by the ratio of points in the circle to total points for a
+sufficiently large selection of coordinates.
 
 We're going to build a workflow to implement this approximation algorithm in three main steps:
 
@@ -71,7 +71,7 @@ We're going to build a workflow to implement this approximation algorithm in thr
 2. Run n workers, one for each list produced in step 1, to determine how many points in the list are in the circle
 (and how many are outside).
 
-3. Run an "aggregator" to sum the results from step two and computes the final pi approximation.
+3. Run an "aggregator" to sum the results from step two and compute the final pi approximation.
 
 By the end of this section we will have created a complete YAML workfile description that we can use to execute
 the workflow. To get started, create a new text file called approximate_pi.yml (or something similar), and add the
@@ -89,7 +89,7 @@ Global Inputs & Outputs
 =======================
 
 Luckily for us, there are Docker images on the public hub available for each of these tasks. For step 1, we'll use the
-``jstubbs/genpoints`` image to generate lists of random coordinates for us.
+``jstubbs/genpoints`` image to generate lists of random coordinates for use in step 2.
 
 All input files in an endofday workflow are either global inputs or outputs from another task. We know from the
 documentation of the genpoints program that the number of lists and the number of coordinates in each
@@ -108,7 +108,7 @@ below the workflow name and add our input file:
 To define the global input we provide two values - label and source - separated by ``<-``. In this case, the label is
 simply "input". The label can be whatever we want, but it should be unique so that we can use it to reference the input
 in other sections of the workflow definition. The source attribute, in this case "genpoints.conf", tells endofday
-where to find the file. Here we have provided a relative path so endofday looks in the current working
+where to find the file. Here we have provided a relative path, so endofday looks in the current working
 directory. Alternatively, we could have provided any absolute path on the file system.
 
 We also need to create the genpoints.conf file.  All we have to do is supply the number of files and the number of
@@ -165,7 +165,7 @@ of the task. Here is the process definition for the first step in our workflow:
 We've created a new entry in the processes section called ``generate_coords`` which is just a label for our process. It
 can be anything as long as it is unique across the workflow. The ``image`` and ``description`` fields are
 self explanitory. In the input section, we list all file inputs to the process. Here we have specified that we want to
-use the input labeled "input" from the "inputs" section and we want to map it to the path "/data/gen.conf" in the
+use the input labeled "input" from the (global) "inputs" section and we want to map it to the path "/data/gen.conf" in the
 jstubbs/genpoints container. We could have mapped it anywhere in the container - endofday will take of mounting the
 Docker volumes properly at runtime.
 
@@ -175,7 +175,8 @@ know from our experience running the genpoints container that it stores the outp
 labels them ``out_0`` through ``out_n``. In this case we configured it to generate four files.
 
 Finally, the ``command`` value is what is actually passed to the ``docker run`` statement. We are executing the
-genpoints script and passing a single argument - the location of our config file.
+genpoints script and passing a single argument, the location of our config file in the container. Note that this matches
+the path specified in our our input declaration. This is by design.
 
 
 Task Dependencies
@@ -234,7 +235,7 @@ four such processes since four outputs were created in step 1.
 
 Note the input section of each of our count_points tasks: they refer to an output from the generate_coords task, but
 this is the only input to the task. As a result, each count_points task depends on the generate_coords task, but none
-of them depend on each other.
+of them depend on each other. When endofday executed this workflow, all count_points tasks will execute in parallel. 
 
 Approximating Pi
 ================
