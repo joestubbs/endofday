@@ -4,18 +4,18 @@ Introduction
 
 At its heart, ``endofday`` is a workflow engine for ``docker`` containers. When we refer to a workflow, we mean an
 orchestrated set of tasks or processes that together accomplish some larger objective. In the case of endofday,
-the individual tasks are container executions which means that virtually any Linux host can provide computational
+the individual tasks are container invocations which means that virtually any Linux host can provide computational
 resources in support of executing an endofday workflow. One of the great features of endofday is that you can easily
-transition from executing your entire workflow on your personal machine, to executing part or all of it in the
+transition from executing your entire workflow on your personal machine, to executing part or all of it in a remote
 cloud, freeing up your local resources for other tasks.
 
-Each task within a workflow can have any number of inputs and outputs, and each input or output can be any  file or
+Each task within a workflow can have any number of inputs and outputs, and each input or output can be any file or
 directory. By defining the input of one task to be the output of another task, a dependency can be created between two
 tasks. The endofday engine analyzes the dependencies of all tasks within a workflow and executes the tasks in the proper
 order, running tasks in parallel when possible.
 
 Workflows for endofday are defined in a text file using the YAML format. The YAML definition includes a description of
-each container that should be executed (the image, command to run, inputs and ouputs) as well as the global inputs and
+each container that should be executed (the image, command to run, inputs and outputs) as well as the global inputs and
 outputs of the workflow. This makes endofday workflows very easy to share and distribute. Thanks to Docker, you can
 execute the same workflow from one host to the next by simply copying the yml file to the new host. No additional
 software installation is needed: if the images are not available locally, they will be pulled automatically from the
