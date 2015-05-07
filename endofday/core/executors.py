@@ -175,7 +175,10 @@ class AgaveExecutor(object):
             self.client_secret = os.environ.get('AGAVE_CLIENT_SECRET')
         self.storage_system = Config.get('agave', 'storage_system')
         if not self.storage_system:
-            self.storage_system = 'data.iplantcollaborative.org'
+            if 'agave.iplantc.org' in self.api_server:
+                self.storage_system = 'data.iplantcollaborative.org'
+            else:
+                self.storage_system = 'endofday.local.storage.com'
         self.home_dir = Config.get('agave', 'home_dir')
         self.email = Config.get('agave', 'email')
 
