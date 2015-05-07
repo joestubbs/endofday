@@ -1,0 +1,67 @@
+---
+
+name: approx_pi
+
+inputs:
+    - input <- genpoints.conf
+
+
+outputs:
+    - approx_pi.pi
+
+
+processes:
+    generate_coords:
+        image: jstubbs/genpoints
+        description: creates lists of randomly generated coordinates from [0,1]
+        inputs:
+            - inputs.input -> /data/gen.conf
+        outputs:
+            - /data/out_0 -> out_0
+            - /data/out_1 -> out_1
+            - /data/out_2 -> out_2
+            - /data/out_3 -> out_3
+        command: python ./genpoints.py -p /data/gen.conf
+
+    count_points_0:
+        image: jstubbs/ctpts
+        inputs:
+            - generate_coords.out_0 -> /tmp/input
+        outputs:
+            - /tmp/output -> out
+        command: python ./ctpoints.py -p /tmp/input
+
+    count_points_1:
+        image: jstubbs/ctpts
+        inputs:
+            - generate_coords.out_1 -> /tmp/input
+        outputs:
+            - /tmp/output -> out
+        command: python ./ctpoints.py -p /tmp/input
+
+    count_points_2:
+        image: jstubbs/ctpts
+        inputs:
+            - generate_coords.out_2 -> /tmp/input
+        outputs:
+            - /tmp/output -> out
+        command: python ./ctpoints.py -p /tmp/input
+
+    count_points_3:
+        image: jstubbs/ctpts
+        inputs:
+            - generate_coords.out_3 -> /tmp/input
+        outputs:
+            - /tmp/output -> out
+        command: python ./ctpoints.py -p /tmp/input
+
+    approx_pi:
+        image: jstubbs/apprxpi
+        inputs:
+            - count_points_0.out -> /data/out_0
+            - count_points_1.out -> /data/out_1
+            - count_points_2.out -> /data/out_2
+            - count_points_3.out -> /data/out_3
+        outputs:
+            - /tmp/pi -> out
+        command: python ./apprxpi.py -p /data
