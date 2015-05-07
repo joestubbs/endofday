@@ -1,4 +1,5 @@
 import argparse
+import multiprocessing
 import os
 import subprocess
 import sys
@@ -335,16 +336,20 @@ class Task(object):
             'targets': targets,
             'file_dep': file_deps,
         }
-        print "Task:", self.name
-        print "BASE:", BASE
-        print "file_deps:", str(file_deps)
-        print "outputs:", str(targets)
+        # print "Task:", self.name
+        # print "BASE:", BASE
+        # print "file_deps:", str(file_deps)
+        # print "outputs:", str(targets)
 
 class DockerLoader(TaskLoader):
     @staticmethod
     def load_tasks(cmd, opt_values, pos_args):
+        cpus = multiprocessing.cpu_count()
         task_list = [dict_to_task(task.doit_dict) for task in tasks]
         config = {'verbosity': 2}
+        if cpus > 1:
+            config['num_process'] = cpus
+            print "Using multiprocessing with", cpus, "processes."
         return task_list, config
 
 
