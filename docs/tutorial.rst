@@ -54,14 +54,14 @@ example that approximates the number :math:`\pi` using basic algebra. The exampl
 how to use the main features of endofday. It also illustrates how to cast the map-reduce model of computation into the
 endofday framework.
 
-The basic idea behind our :math:`pi` approximation is that, given a unit circle inscribed in a square, the ratio of the area of
+The basic idea behind our :math:`\pi` approximation is that, given a unit circle inscribed in a square, the ratio of the area of
 the circle to the area of the square is
 
 .. math::
 
    \frac{\pi r^2}{(2r)^2} = \frac{\pi r^2}{4r^2} = \frac{\pi}{4}
 
-Therefore, we can approximate :math:`pi` as 4 times an approximation of (area of circle)/(area of square). We can approximate
+Therefore, we can approximate :math:`\pi` as 4 times an approximation of (area of circle)/(area of square). We can approximate
 the ratio of the areas by randomly picking coordinates :math:`(x,y)` in :math:`[0,1]` and determining if they are in the circle by
 checking the algebraic equation for a circle we all learned in
 elementary school: :math:`x^2 + y^2 \le 1`. The
