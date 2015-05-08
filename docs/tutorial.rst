@@ -242,10 +242,17 @@ this is the only input to the task. As a result, each count_points task depends 
 of them depend on each other. When endofday executed this workflow,
 all ``count_points`` tasks will execute in parallel.
 
-.. figure:: pi.svg
-   :align: center
-   :width: 85%
+.. only:: html
 
+   .. figure:: pi.svg
+      :align: center
+      :width: 85%
+
+.. only:: latex
+
+   .. figure:: pi.pdf
+      :align: center
+      :width: 85%
 
 
 Approximating Pi
