@@ -239,7 +239,14 @@ four such processes since four outputs were created in step 1.
 
 Note the input section of each of our ``count_points`` tasks: they refer to an output from the ``generate_coords`` task, but
 this is the only input to the task. As a result, each count_points task depends on the generate_coords task, but none
-of them depend on each other. When endofday executed this workflow, all ``count_points`` tasks will execute in parallel.
+of them depend on each other. When endofday executed this workflow,
+all ``count_points`` tasks will execute in parallel.
+
+.. figure:: pi.svg
+   :align: center
+   :width: 85%
+
+
 
 Approximating Pi
 ================
