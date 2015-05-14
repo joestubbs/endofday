@@ -14,6 +14,9 @@ directory. By defining the input of one task to be the output of another task, a
 tasks. The endofday engine analyzes the dependencies of all tasks within a workflow and executes the tasks in the proper
 order, running tasks in parallel when possible.
 
+.. image:: generic.png
+   :align: center
+
 Workflows for endofday are defined in a text file using the YAML_ format. The YAML definition includes a description of
 each container that should be executed (the image, command to run, inputs and outputs) as well as the global inputs and
 outputs of the workflow. This makes endofday workflows very easy to share and distribute. Thanks to Docker_, you can
