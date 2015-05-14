@@ -46,8 +46,7 @@ class AgaveAsyncResponse(object):
         # print "url after replacing:", self.url
 
     def _update_status(self):
-        headers = {'Authorization': 'Bearer ' + self.ag.token.token_info.get('access_token')}
-        rsp = requests.get(url=self.url, headers=headers, verify=self.ag.verify)
+        rsp = self.ag.geturl(self.url)
         if (rsp.status_code == 404 or rsp.status_code == 403) and self.retries < 10:
             time.sleep(1.5)
             self.retries += 1
