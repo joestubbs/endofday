@@ -15,6 +15,7 @@ from doit.doit_cmd import DoitMain
 from .config import Config
 from .error import Error
 from .executors import AgaveAsyncResponse, AgaveExecutor
+from .hosts import update_hosts
 
 # working directory for endofday
 BASE = os.environ.get('STAGING_DIR') or '/staging'
@@ -470,6 +471,7 @@ def main(yaml_file):
 
 if __name__ == '__main__':
     requests.packages.urllib3.disable_warnings()
+    update_hosts()
     parser = argparse.ArgumentParser(description='Execute workflow of docker containers described in a yaml file.')
     parser.add_argument('yaml_file', type=str,
                         help='Yaml file to parse')

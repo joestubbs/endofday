@@ -8,6 +8,7 @@ import requests
 from .docker import RUNNING_IN_DOCKER
 from .error import Error
 from .executors import AgaveExecutor, AgaveAsyncResponse
+from .hosts import update_hosts
 import tasks
 
 
@@ -81,6 +82,7 @@ def main(yaml_file):
 
 if __name__ == '__main__':
     requests.packages.urllib3.disable_warnings()
+    update_hosts()
     parser = argparse.ArgumentParser(description='Execute eod workflow in the Agave cloud.')
     parser.add_argument('yaml_file', type=str,
                         help='Yaml file to parse')

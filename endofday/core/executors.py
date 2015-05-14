@@ -4,6 +4,7 @@
 import os
 import requests
 import time
+import urlparse
 
 from agavepy.agave import Agave
 import jinja2
@@ -36,10 +37,17 @@ class AgaveAsyncResponse(object):
             raise Error("Error parsing response object: no URL detected. response: " + str(response))
         # url's returned by agave sometimes have the version as 2.0, so we replace that here
         self.url = self.url.replace('/2.0/','/v2/')
+        # url's also sometimes have the wrong domain; always use the api_server from the config.
+        self.url_domain =  urlparse.urlparse(self.url).netloc
+        api_server_domain = urlparse.urlparse(Config.get('agave', 'api_server')).netloc
+        # print "domain from agave:", self.url_domain
+        # print "correct domain:", api_server_domain
+        self.url = self.url.replace(self.url_domain, api_server_domain)
+        # print "url after replacing:", self.url
 
     def _update_status(self):
         headers = {'Authorization': 'Bearer ' + self.ag.token.token_info.get('access_token')}
-        rsp = requests.get(url=self.url, headers=headers)
+        rsp = requests.get(url=self.url, headers=headers, verify=self.ag.verify)
         if (rsp.status_code == 404 or rsp.status_code == 403) and self.retries < 10:
             time.sleep(1.5)
             self.retries += 1
