@@ -1,0 +1,53 @@
+{
+	"id": "endofday.local.execute.com",
+	"name": "endofday local execution system",
+	"status": "UP",
+	"type": "EXECUTION",
+	"description": "Execution system for local endofday runs",
+	"site": "agaveapi.co",
+	"executionType": "CLI",
+    "scratchDir": "/scratch",
+    "workDir": "/work",
+   "queues": [
+     {
+       "name": "debug",
+       "maxJobs": 100,
+       "maxUserJobs": 10,
+       "maxNodes": 128,
+       "maxMemoryPerNode": "2GB",
+       "maxProcessorsPerNode": 128,
+       "maxRequestedTime": "24:00:00",
+       "customDirectives": "",
+       "default": true
+     }
+   ],
+   "login":{
+      "host":"191.236.150.54",
+      "port": 22,
+      "protocol": "SSH",
+      "scratchDir": "/scratch",
+      "workDir": "/work",
+      "auth":{
+         "username":"jstubbs",
+         "password":"",
+         "type":"PASSWORD"
+      }
+   },
+   "storage":{
+      "host":"191.236.150.54",
+      "port":22,
+      "protocol":"SFTP",
+      "rootDir":"/",
+      "homeDir":"/home/jstubbs",
+      "auth":{
+         "username":"jstubbs",
+         "password":"",
+         "type":"PASSWORD"
+      }
+   },
+   "maxSystemJobs": 100,
+   "maxSystemJobsPerUser": 10,
+   "scheduler": "FORK",
+   "environment": "",
+   "startupScript": "./bashrc"
+}

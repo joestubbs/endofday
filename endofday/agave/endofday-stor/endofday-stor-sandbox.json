@@ -1,0 +1,20 @@
+{
+   "id": "endofday.local.storage.com",
+   "name": "endofday local storage system",
+   "status":"UP",
+   "type":"STORAGE",
+   "description":"Storage system for local endofday runs",
+   "site":"agaveapi.co",
+   "storage":{
+      "host":"191.236.150.54",
+      "port":22,
+      "protocol":"SFTP",
+      "rootDir":"/",
+      "homeDir":"/home/jstubbs",
+      "auth":{
+         "username":"jstubbs",
+         "password": "",
+         "type": "PASSWORD"
+      }
+   }
+}
