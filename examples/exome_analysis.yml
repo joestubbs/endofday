@@ -1,0 +1,75 @@
+name: exome-analysis
+
+inputs:
+    - fa1.fq <- bio/exome-sept14/Sample_F4040.1.clean.mini.fq
+    - fa2.fq <- bio/exome-sept14/Sample_F4040.2.clean.mini.fq
+    - ref.fasta <- bio/exome-sept14/human_g1k_v37.fasta
+    - know_indels_1.vcf <- bio/exome-sept14/1000G_phase1.indels.b37.vcf
+    - known_indels_2.vcf <- bio/exome-sept14/Mills_and_1000G_gold_standard.indels.b37.vcf
+
+processes:
+    bwa-mem:
+        image: taccsciapps/bwa
+        description: Align paired-end reads to reference.
+        inputs:
+            - inputs.fa1.fq -> /data/fa1.fq
+            - inputs.fa2.fq -> /data/fa2.fq
+            - inputs.ref.fasta -> /data/ref.fasta
+        outputs:
+            - /data/algn.sam -> algn.sam
+        command: python bwa.py mem -R @RG\tID:1\tSM:1\tPL:illumina\tLB:lib1\tPU:HISEQ /data/ref.fasta /data/fa1.fq /data/fa2.fq > /data/algn.sam
+
+    picard-s2b:
+        image: taccsciapps/picard
+        description: Convert sam to bam
+        inputs:
+            - bwa-mem.algn.sam -> /data/input.sam
+        outputs:
+            - /data/output.bam -> output.bam
+        command: java -jar SortSam.jar INPUT=/data/input.sam OUTPUT=/data/output.bam SORT_ORDER=coordinate
+
+    picard-dup:
+        image: taccsciapps/picard
+        description: Mark duplicates
+        inputs:
+            - picard-sb2.output.bam -> /data/input.bam
+            - inputs.ref.fasta -> /data/ref.fasta
+            - inputs.metrics.txt -> /data/metrics.txt
+        outputs:
+            - /data/output.bam -> output.bam
+            - /data/metrics.txt -> metrics.txt
+        command: java -jar markDuplicates.jar INPUT=/data/input.bam METRICS_FILE=/data/metrics.txt OUTPUT=/data/output.bam
+
+    picard-bamidx:
+        image: taccsciapps/picard
+        description: Build bam index; makes changes to file in place.
+        inputs:
+            - picard-dup.output.bam -> /data/input.bam
+        outputs:
+            - /data/input.bam -> output.bam
+        command: java -jar BuildBamIndex.jar INPUT=/data/input.bam
+
+    gatk-makeintervals:
+        image: taccsciapps/gatk
+        description: Create re-aligner target
+        inputs:
+            - picard-bamidx.output.bam -> /data/input.bam
+            - inputs.ref.fasta -> /data/ref.fasta
+            - inputs.known_indels_1.vfc -> /data/known_indels_1.vfc
+            - inputs.known_indels_2.vfc -> /data/known_indels_2.vfc
+        outputs:
+            - /data/realigner.intervals -> realigner.intervals
+	command: java -jar gatk.jar -T RealignerTargetCreator -R /data/ref.fasta -I /data/input.bam -known /data/known_indels.vfc -known /data/known_indels_2.vfc -o /data/realigner.intervals
+
+    gatk-indel:
+        image: taccsciapps/gatk
+        description: Realign around known indels
+        inputs:
+            - picard-bamidx.output.bam -> /data/input.bam
+            - inputs.ref.fasta -> /data/ref.fasta
+            - inputs.known_indels_1.vfc -> /data/known_indels_1.vfc
+            - inputs.known_indels_2.vfc -> /data/known_indels_2.vfc
+            - gatk-makeintervals.realigner.intervals -> /data/realigner.intervals
+        outputs:
+            - /data/output.bam -> output.bam
+        command: java -jar gatk.jar -T IndelRealigner -R /data/ref.fasta -I dedup_Sample_{{ sample_id }}.bam -targetIntervals realigner.intervals -o /data/output.bam
