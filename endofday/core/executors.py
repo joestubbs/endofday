@@ -6,7 +6,7 @@ import requests
 import time
 import urlparse
 
-from agavepy.agave import Agave
+from agavepy.agave import Agave, AgaveException
 import jinja2
 
 from .error import Error
@@ -145,7 +145,7 @@ class AgaveExecutor(object):
                                        filePath=self.home_dir,
                                        body={'action':'mkdir',
                                              'path':wf_name})
-        except requests.exceptions.HTTPError as e:
+        except (requests.exceptions.HTTPError, AgaveException):
             # if the directory already exists we could get an error trying to create it.
             pass
 
