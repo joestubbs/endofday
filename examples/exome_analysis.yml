@@ -26,7 +26,7 @@ processes:
             - bwa-mem.algn.sam -> /data/input.sam
         outputs:
             - /data/output.bam -> output.bam
-        command: java -jar SortSam.jar INPUT=/data/input.sam OUTPUT=/data/output.bam SORT_ORDER=coordinate
+        command: picard-tools SortSam INPUT=/data/input.sam OUTPUT=/data/output.bam SORT_ORDER=coordinate
 
     picard-dup:
         image: taccsciapps/picard
@@ -38,7 +38,7 @@ processes:
         outputs:
             - /data/output.bam -> output.bam
             - /data/metrics.txt -> metrics.txt
-        command: java -jar markDuplicates.jar INPUT=/data/input.bam METRICS_FILE=/data/metrics.txt OUTPUT=/data/output.bam
+        command: picard-tools markDuplicates INPUT=/data/input.bam METRICS_FILE=/data/metrics.txt OUTPUT=/data/output.bam
 
     picard-bamidx:
         image: taccsciapps/picard
@@ -47,7 +47,7 @@ processes:
             - picard-dup.output.bam -> /data/input.bam
         outputs:
             - /data/input.bam -> output.bam
-        command: java -jar BuildBamIndex.jar INPUT=/data/input.bam
+        command: picard-tools BuildBamIndex INPUT=/data/input.bam
 
     gatk-makeintervals:
         image: taccsciapps/gatk
