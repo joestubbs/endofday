@@ -1,0 +1,105 @@
+
+
+# Proposal for implementing arbitrary agave apps as nodes in the wf.
+
+High level:
+
+1) ./endofday.sh agave_apps_example.yml
+
+2) Job is submitted to Agave to execute the "eod_agave_apps" app with input agave_apps_example.yml
+job_id is returned to the user for monitoring and the program exits.
+
+3) The eod_agave_apps app launches on a compute system, converts the yml into a TaskFile object whose tasks
+have special actions that:
+    - submit the agave job with the correct inputs (as URI's), parameters (from the yaml file) and outputs.
+    - blocks on the job finishing and, when it is finishes, touches a file in the local directory for each
+      output.
+    - these local files are the dependencies for subsequent jobs.
+
+
+# Example wf
+name: agave_apps_example
+
+inputs:
+    - input_1 <- agave://ex.storage.system//data/input.txt
+    - input_2 <- agave://other.storage.system//home/jdoe/input.txt
+
+outputs:
+    - green.just_some_label
+
+processes:
+    red:
+        # list the app id to execute
+        app_id: some_agave_app_id
+        
+        # specify the execution is an "agave_app" so eod knows to look for special stanzas.
+        execution: agave_app
+        
+        # the inputs section is a list of mappings from labels within the wf file to agave input id's in the
+        # agave app description
+        inputs:
+            - inputs.input_1 -> some_input_id
+            - inputs.input_2 -> some_other_input_id
+        
+        # the parameters section is a list of mappings from actual values to agave parameter id's in the
+        # agave app description
+        parameters:
+            - "1" -> some_param_id
+            - "verbose" -> some_other_param_id
+            
+        # the outputs section is a mapping from *some agave-native way* to reference the output of a job
+        # to labels within the wf file. Right now, the LHS needs some work because very few Agave app actually
+        # register outputs. One possibility is to give a path relative to the working directory for the job
+        # that will execute. This is obviously fragile. Need to check if there is a way to go from 
+        # job_id + (app_id + ) output_id -> URI under the assumption that the job used archiving. 
+        outputs:
+            - some_output_id -> some_out_label
+
+    blue:
+        app_id: some_other_agave_app_id
+        execution: agave_app
+        inputs:
+            - inputs.input_1 -> some_input_id
+        parameters:
+            - "true" -> some_param_id
+        outputs:
+            - some_output_id -> whatever_i_want
+
+    green:
+        app_id: another_agave_app_id
+        execution: agave_app
+        inputs:
+            - blue.whatever_i_want -> some_input_id
+            - red.some_out_label -> some_other_input_id
+        outputs:
+            - some_output_id -> just_some_label
+
+
+~~~
+we could potentially reuse a lot of eod work if we created a special "eod_submit_job" container and
+converted a typical stanza above to the following:
+
+    red:
+        # use a generic image to submit the job
+        image: eod_submit_job
+
+        # each 'input' becomes a file in a specific directory (/agave/inputs) and the contents of the file
+        # are the (resolved) URI.
+        inputs:
+            - inputs.input_1 -> /agave/inputs/some_input_id
+            - inputs.input_2 -> /agave/inputs/some_other_input_id
+
+        # each 'output' also becomes a file but in /agave/outputs. The submit.py creates these files once the
+        # job finishes to signal to the eod engine that the step in the workflow is complete.
+        outputs:
+            - some_output_id -> /agave/outputs/some_out_label
+
+        # here we execute the script. the '/agave/output_labels' file is a special file loaded into the
+        # container by the eod engine. it simply contains the original 'outputs' stanza from the user's
+        # yaml file (the output_id -> label mappings). the submit.py needs this information in order to know
+        # which files it must create in the /agave/outputs/ directory.
+
+        # the parameters are passed in directly on the command line.
+        command: python submit.py /agave/output_labels app_id=some_agave_app_id some_param_id="1" some_other_param_id="verbose"
+
+
