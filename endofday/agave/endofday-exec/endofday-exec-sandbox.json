@@ -22,19 +22,19 @@
      }
    ],
    "login":{
-      "host":"191.236.150.54",
+      "host":"65.52.210.51",
       "port": 22,
       "protocol": "SSH",
       "scratchDir": "/scratch",
       "workDir": "/work",
       "auth":{
          "username":"jstubbs",
-         "password":"",
+         "password":"d3f@ult$",
          "type":"PASSWORD"
       }
    },
    "storage":{
-      "host":"191.236.150.54",
+      "host":"65.52.210.51",
       "port":22,
       "protocol":"SFTP",
       "rootDir":"/",
