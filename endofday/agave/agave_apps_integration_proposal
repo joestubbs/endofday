@@ -92,7 +92,7 @@ converted a typical stanza above to the following:
         # each 'output' also becomes a file but in /agave/outputs. The submit.py creates these files once the
         # job finishes to signal to the eod engine that the step in the workflow is complete.
         outputs:
-            - some_output_id -> /agave/outputs/some_out_label
+            -  /agave/outputs/some_out_label -> some_output_id
 
         # here we execute the script. the '/agave/output_labels' file is a special file loaded into the
         # container by the eod engine. it simply contains the original 'outputs' stanza from the user's
