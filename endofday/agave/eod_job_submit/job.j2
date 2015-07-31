@@ -1,0 +1,51 @@
+{
+  "name": "eod-{{ wf_name }}-{{ task_name }}-{{ app_id }}",
+  "appId": "{{ app_id }}",
+  {% if inputs %}
+  "inputs": {
+      {% for inp in inputs %}
+        "{{ inp.id }}": [{% for uri_str in inp.uris %}{{ uri_str }}{% endfor %}]
+      {% endfor %}
+  },
+  {% endif %}
+
+  {% if parameters %}
+  "parameters": {
+      {% for parm in parameters %}
+        "{{ parm.id }}": {{ parm.value }}
+      {% endfor %}
+  },
+  {% endif %}
+  "archive": true,
+  "archiveSystem": "{{ system_id }}" {% if email %},{% endif %}
+
+  {% if email %}
+  "notifications": [
+    {
+      "url": "{{ email }}",
+      "event": "FINISHED",
+      "persistent": true
+    },
+    {
+      "url": "{{ email }}",
+      "event": "FAILED",
+      "persistent": true
+    },
+    {
+      "url": "{{ email }}",
+      "event": "KILLED",
+      "persistent": true
+    },
+    {
+      "url": "{{ email }}",
+      "event": "STOPPED",
+      "persistent": true
+    },
+    {
+      "url": "{{ email }}",
+      "event": "RUNNING",
+      "persistent": true
+    }
+  ]
+  {% endif %}
+}
