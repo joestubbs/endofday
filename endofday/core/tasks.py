@@ -85,16 +85,6 @@ class GlobalInput(object):
 
     def set_abs_host_path(self, wf_name):
         """Compute the absolute host path for this global input."""
-        # if the global input is a URI, we create a special file for it on the host whose path
-        #
-        # if self.is_uri:
-        #     # path is wf_home/global_inputs
-        #     self.abs_host_path = os.path.join(get_host_work_dir(wf_name), 'global_inputs', self.label)
-        #     # create file with URI as contents
-        #     with open(self.abs_host_path, 'w') as f:
-        #         print(self.uri, file=f)
-        # else:
-        # if src is already an absolute path, we're done
         if self.src.startswith('/'):
             self.abs_host_path = self.src
         # otherwise, it's a relative path so it will be in the HOST_BASE
