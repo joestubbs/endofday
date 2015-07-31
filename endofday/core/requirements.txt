@@ -4,3 +4,4 @@ doit
 pytest
 -e git+https://jstubbs@bitbucket.org/taccaci/agavepy.git#egg=agavepy
 sphinx_rtd_theme
+rfc3987

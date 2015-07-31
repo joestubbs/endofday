@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import argparse
 import multiprocessing
 import os
@@ -6,6 +8,7 @@ import sys
 
 from collections import OrderedDict
 import requests
+import rfc3987
 import yaml
 
 from doit.task import dict_to_task
@@ -17,8 +20,6 @@ from .error import Error
 from .executors import AgaveAsyncResponse, AgaveExecutor
 from .hosts import update_hosts
 
-# working directory for endofday
-# BASE = os.environ.get('STAGING_DIR') or '/staging'
 
 # Current working directory of the host, passed in as an environmental variable by the alias.sh
 HOST_BASE = os.environ.get('STAGING_DIR')
@@ -33,6 +34,9 @@ def to_eod(host_path):
     else:
         return os.path.join('/host', host_path[1:])
 
+def get_host_work_dir(wf_name):
+    """Return the working directory in the host for a work file"""
+    return os.path.join(HOST_BASE, wf_name)
 
 # the directory where the eod_submit_job container will look for inputs'
 AGAVE_INPUTS_DIR = '/agave/inputs'
@@ -41,8 +45,6 @@ AGAVE_INPUTS_DIR = '/agave/inputs'
 AGAVE_OUTPUTS_DIR = '/agave/outputs'
 
 
-from .docker import RUNNING_IN_DOCKER, DOCKER_BASE
-
 # global tasks list to pass to the DockerLoader
 tasks = []
 
@@ -50,8 +52,7 @@ verbose = False
 
 class GlobalInput(object):
     """
-    Represents an input to a workflow. E.g.
-    input <- /data/foo/input.txt
+    Represents an input to a workflow. E.g. for a string input <- /data/foo/input.txt
     src =  /data/foo/input.txt
     label = input
 
@@ -59,7 +60,8 @@ class GlobalInput(object):
     input <- workflow1.output (and then we need to resolve this)
 
     """
-    def __init__(self, label, src):
+
+    def __init__(self, label, src, wf_name):
         # a label to reference this input by in other parts of the wf file.
         self.label = label
 
@@ -74,19 +76,30 @@ class GlobalInput(object):
         self.src = src
 
         self.is_uri = False
-        if '://' in self.src:
+        if rfc3987.match(self.src, 'URI'):
             self.is_uri = True
             self.uri = self.src
+        else:
+            self.abs_host_path = self.set_abs_host_path(wf_name)
+            self.eod_container_path = to_eod(self.abs_host_path)
 
-        if not self.is_uri:
-            # if src is an absolute path, look for the file in the /host dir of the eod container
-            if self.src.startswith('/'):
-                self.abs_host_path = self.src
-                self.eod_container_path = to_eod(self.src)
-            # otherwise, it's a relative path so it will be in the EOD_CONTAINER_BASE
-            else:
-                self.abs_host_path = os.path.join(HOST_BASE, self.src)
-                self.eod_container_path = os.path.join(EOD_CONTAINER_BASE, self.src)
+    def set_abs_host_path(self, wf_name):
+        """Compute the absolute host path for this global input."""
+        # if the global input is a URI, we create a special file for it on the host whose path
+        #
+        # if self.is_uri:
+        #     # path is wf_home/global_inputs
+        #     self.abs_host_path = os.path.join(get_host_work_dir(wf_name), 'global_inputs', self.label)
+        #     # create file with URI as contents
+        #     with open(self.abs_host_path, 'w') as f:
+        #         print(self.uri, file=f)
+        # else:
+        # if src is already an absolute path, we're done
+        if self.src.startswith('/'):
+            self.abs_host_path = self.src
+        # otherwise, it's a relative path so it will be in the HOST_BASE
+        else:
+            self.abs_host_path = os.path.join(HOST_BASE, self.src)
 
 
 class Volume(object):
@@ -102,10 +115,35 @@ class Volume(object):
         return '{}:{} '.format(self.host_path, self.container_path)
 
 
-class BaseInput(object):
-    """ Base class for TaskInput and AgaveAppTaskInput
+def resolve_source(src, global_inputs, tasks):
+    """ Returns a GlobalInput or a TaskOutput object matching the label in 'src'.
     """
-    def __init__(self, src):
+    src_task = src.split('.')[0]
+    src_name = src.split('.')[1]
+    if src_task == 'inputs':
+        # src references a global input, so look through global_inputs
+        sources = global_inputs
+    else:
+        # src references another task output
+        for task in tasks:
+            if task.name == src_task:
+                sources = task.outputs
+                break
+        else:
+            # didn't find the task label
+            raise Error("Input reference not found: " + str(src_task))
+    for source in sources:
+        if source.label == src_name:
+            return source
+    else: # this is on for loop: if we did not break, we did not find the input
+        raise Error("Input reference not found: " + str(src_task))
+
+
+class TaskInput(object):
+    """
+    Represents a file input to a task within a workflow.
+    """
+    def __init__(self, src, dest):
         # src is a reference to either a global input or an output of another task.
         self.src = src
 
@@ -117,44 +155,37 @@ class BaseInput(object):
         self.src_task = self.src.split('.')[0]
         self.src_name = self.src.split('.')[1]
 
-    def resolve_src(self, global_inputs, tasks):
-        """Resolves the src to a global input or task output."""
-        if self.src_task == 'inputs':
-            # src references a global input, so look through global_inputs
-            sources = global_inputs
-        else:
-            # src references another task output
-            for task in tasks:
-                if task.name == self.src_task:
-                    sources = task.outputs
-                    break
-            else:
-                # didn't find the task label
-                Error("Input reference not found: " + str(self.src_task))
-        for source in sources:
-            if source.label == self.src_name:
-                return source
-        else: # this is on for loop: if we did not break, we did not find the input
-            raise Error("Input reference not found: " + str(self.src_task))
-
-
-class TaskInput(BaseInput):
-    """
-    Represents a file input to a task within a workflow.
-    """
-    def __init__(self, src, dest):
-        # Handle the src data
-        super(TaskInput).__init__(self, src)
-
         # dest is a container path
         self.dest = dest
 
-    def get_volume(self, global_inputs, tasks):
-        """ Create a volume object for this task input."""
-        real_source = self.resolve_src(global_inputs, tasks)
-        host_path = real_source.abs_host_path
+        # real_source is either a GlobalInput object or a TaskOutput object. It is
+        # computed later, in get_volumes, once all tasks have been created.
+        self.real_source = None
+
+    def resolve_src(self, global_inputs, tasks):
+        """Resolves the src to a global input or task output."""
+        return resolve_source(self.src, global_inputs, tasks)
+
+    def set_volume(self, global_inputs, tasks):
+        """ Set the volume object for this task input. Can only be run after all tasks are created."""
+        self.real_source = self.resolve_src(global_inputs, tasks)
+        host_path = self.real_source.abs_host_path
         container_path = self.dest
-        return Volume(host_path, container_path)
+        self.volume = Volume(host_path, container_path)
+
+
+class AddedInput(object):
+    """TaskInput-like object that can be added to a task's inputs list by the eod engine. Because it
+    implements the get_volume method, this input behaves just like a TaskInput created from the user's
+    yaml file.
+    """
+
+    def __init__(self, host_path, container_path):
+        self.host_path = host_path
+        self.container_path = container_path
+
+    def set_volume(self, global_inputs, tasks):
+        self.volume = Volume(self.host_path, self.container_path)
 
 
 class TaskOutput(object):
@@ -208,24 +239,30 @@ class TaskOutput(object):
                       container_path=os.path.split(self.src)[0])
 
 
-class AgaveAppTaskInput(BaseInput):
+class AgaveAppTaskInput(object):
     """
     Represents an input to a task which is of execution type 'agave_app'
     """
-    def __init__(self, src, input_id):
-        # Handle the src data
-        super(TaskInput).__init__(self, src)
-
-        # reference to an agave app input_id
+    def __init__(self, input_id, sources_desc, wf_name, task_name):
+        # The Agave app input id for this input
         self.input_id = input_id
 
-        # create a task input for the eod_submit_job container
-        self.task_input = TaskInput(src=self.src, dest=os.path.join(AGAVE_INPUTS_DIR, self.input_id))
+        # a list of sources (labels), each of which refers to either a global input or a task output.
+        self.sources_desc = sources_desc
 
-    def get_uri(self, global_inputs, tasks):
-        """Get the absolute uri for this input which can be passed to the Agave job submission"""
-        real_source = self.resolve_src(global_inputs, tasks)
-        self.uri = real_source.uri
+        # create a task input for the eod_submit_job container
+        self.task_input = AddedInput(host_path=os.path.join(get_host_work_dir(wf_name), task_name, self.input_id),
+                                     container_path=os.path.join(AGAVE_INPUTS_DIR, self.input_id))
+
+    def write_uris(self, global_inputs, tasks):
+        """Write the absolute uris for this input which can be passed to the Agave job submission"""
+        self.uris = []
+        for source in self.sources_desc:
+            real_source = resolve_source(source, global_inputs, tasks)
+            self.uris.append(real_source.uri)
+        with open(self.task_input.host_path, 'w') as f:
+            for uri in self.uris:
+                print(uri, file=f)
 
 
 class AgaveAppTaskOutput(object):
@@ -245,22 +282,13 @@ class AgaveAppTaskOutput(object):
         # the task that this output belongs to
         self.task_name = task_name
 
-        # the uri for this output
-        self.uri = self.get_uri()
-
         # create a task output for the eod_submit_job container
         self.task_output = TaskOutput(src=os.path.join(AGAVE_OUTPUTS_DIR, self.label),
                                       label=self.label,
                                       wf_name=self.wf_name,
                                       task_name=self.task_name)
 
-        def get_uri(self):
-            """ Return a URI for this output."""
-            # todo -- need a way to get the URI for an output of an agave job.
-            return ''
-
-
-class BaseTask(object):
+class BaseDockerTask(object):
     """ Base class for all pydoit tasks.
     """
     def __init__(self, name, desc, wf_name):
@@ -309,6 +337,32 @@ class BaseTask(object):
             result.append((src, dest))
         return result
 
+    def set_output_volume_mounts(self):
+        """
+        We create directories on the host and mount them into the container at
+        run time so that we have access to the outputs. Each volume consists of
+        two paths: the path on the host and the path in the container. For each
+        output, we create a volume to mount that is the immediate parent
+        directory containing the core unless it is a directory in which case
+        we mount the directory itself. Note also that we may not need to mount
+        anything if another output would mount the same or larger directory.
+        """
+        result = []
+        output_volumes = []
+        for output in self.outputs:
+            output_volumes.append(output.volume)
+        output_volumes.sort(key= lambda vol:vol.container_path)
+        # add volumes from dirs_list, removing extraneous ones
+        for volume in output_volumes:
+            head, tail = os.path.split(volume.container_path)
+            while head and tail:
+                if head in [volume.container_path for volume in result]:
+                    break
+                head, tail = os.path.split(head)
+            else:
+                result.append(volume)
+        self.output_volume_mounts = result
+
     def get_docker_command(self, envs=None):
         """
         Returns a docker run command for executing the task image.
@@ -333,7 +387,7 @@ class BaseTask(object):
         docker_cmd += ' ' + self.command
         return docker_cmd, output_str, input_str
 
-    def get_action(self, executor=None):
+    def set_action(self, executor=None):
         """
         The action for a task is the function that is actually called by
         pydoit to execute the task.
@@ -343,10 +397,12 @@ class BaseTask(object):
             """
             Execute the docker container on the local machine.
             """
+            self.pre_action()
             docker_cmd, _, _ = self.get_docker_command()
             # now, execute the container
             proc = subprocess.Popen(docker_cmd, shell=True)
             proc.wait()
+            self.post_action()
 
         # if the task instance has its own executor, use that:
         if hasattr(self, 'executor'):
@@ -358,24 +414,30 @@ class BaseTask(object):
         else:
             self.action = local_action_fn
 
-    def get_doit_dict(self):
+    def pre_action(self):
+        """Subclasses can override this method to do any task pre-processing before the
+        docker container is executed."""
+        pass
+
+    def post_action(self):
+        """Subclasses can override this method to do any task post-processing after the
+        docker container execution completes."""
+        pass
+
+    def set_doit_dict(self):
         """
-        Returns a dictionary that can be used to generate a doit task.
+        Sets the dictionary that can be used to generate a doit task.
         """
+        # the file dependencies for this task whose paths need to refer to the eod container
         file_deps = []
-        targets = []
-        # pydoit paths need to refer to the endofday container:
         for inp in self.inputs:
             file_deps.append(to_eod(inp.host_path))
 
-        ### HERE #####
+        # the files generated by this task whose paths also need to refer to the eod container
+        targets = []
         for output in self.outputs:
-            if BASE in output.host_path:
-                targets.append(output.host_path.replace(BASE, '/staging'))
-            elif output.host_path.startswith('/'):
-                targets.append(os.path.join('/host', output.host_path[1:]))
-            else:
-                targets.append(os.path.join('/host', output.host_path))
+            targets.append(to_eod(output.abs_host_path))
+
         self.doit_dict = {
             'name': self.name,
             'actions': [self.action],
@@ -384,12 +446,20 @@ class BaseTask(object):
             'file_dep': file_deps,
         }
 
+    def set_input_volumes(self, global_inputs, tasks):
+        """ Set the input volumes for this task, once all tasks have been created."""
+        result = []
+        for inp in self.inputs:
+            inp.set_volume(global_inputs, tasks)
+            result.append(inp.volume)
+        self.input_volumes = result
 
-class DockerTask(BaseTask):
+
+class SimpleDockerTask(BaseDockerTask):
     """ Represents a task that executes a docker container.
     """
     def __init__(self, name, desc, wf_name):
-        super(DockerTask).__init__(self, name, desc, wf_name)
+        super(SimpleDockerTask).__init__(self, name, desc, wf_name)
 
         # docker image to use
         self.image = desc.get('image')
@@ -416,9 +486,6 @@ class DockerTask(BaseTask):
                                            wf_name=wf_name,
                                            task_name=self.name))
 
-        # the directories to mount for this task
-        self.output_volume_mounts = self.get_output_volume_mounts()
-
     def audit(self):
         """Run basic audits on a constructed task. Work in progress."""
         if not self.name:
@@ -431,35 +498,12 @@ class DockerTask(BaseTask):
             raise Error("Invalid execution specified for task:{}. " +
                         "Valid options are: local, agave.".format(self.name))
 
-    def get_output_volume_mounts(self):
-        """
-        We create directories on the host and mount them into the container at
-        run time so that we have access to the outputs. Each volume consists of
-        two paths: the path on the host and the path in the container. For each
-        output, we create a volume to mount that is the immediate parent
-        directory containing the core unless it is a directory in which case
-        we mount the directory itself. Note also that we may not need to mount
-        anything if another output would mount the same or larger directory.
-        """
-        result = []
-        output_volumes = []
-        for output in self.outputs:
-            output_volumes.append(output.volume)
-        output_volumes.sort(key= lambda vol:vol.container_path)
-        # add volumes from dirs_list, removing extraneous ones
-        for volume in output_volumes:
-            head, tail = os.path.split(volume.container_path)
-            while head and tail:
-                if head in [volume.container_path for volume in result]:
-                    break
-                head, tail = os.path.split(head)
-            else:
-                result.append(volume)
-        return result
 
-
-class AgaveAppTask(BaseTask):
-    """ Represents a task to execute an agave app by submitting a job.
+class AgaveAppTask(BaseDockerTask):
+    """ Represents a task to execute an agave app by submitting a job. Translates a description of an
+    Agave job into an execution of the eod_job_submit container, and therefore maintains all of the
+    attributed required of a DockerTask (image, command, inputs, outputs, etc.) in addition to the
+    attributes pertaining to the Agave app.
     """
     def __init__(self, name, desc, wf_name):
         super(AgaveAppTask).__init__(self, name, desc, wf_name)
@@ -476,18 +520,32 @@ class AgaveAppTask(BaseTask):
         # build the command from the params
         self.command = self.get_container_command()
 
+        # these are AgaveAppTaskInput objects, inputs to the Agave app, supplied by
+        # the user in the yaml file.
+        self.app_inputs = []
+
+        # these are AgaveAppTaskOutput objects, outputs to the Agave app, supplied by
+        # the user in the yaml file.
+        self.app_outputs = []
+
         self.audit()
 
-        # create the AgaveAppTaskInput objects
-        for inp in self.parse_in_out_desc(self.inputs_desc, 'input'):
-            self.inputs.append(AgaveAppTaskInput(src=inp[0], input_id=inp[1]))
+        # the inputs_desc is a dictionary whose keys are agave app input id's and whose values
+        # are a list of sources (labels) to use.
+        for inp_id, sources in self.inputs_desc.items():
+            app_inp = AgaveAppTaskInput(inp_id, sources)
+            self.app_inputs.append(app_inp)
+            self.inputs.append(app_inp.task_input)
 
         # create the AgaveAppTaskOutput objects
         for out in self.parse_in_out_desc(self.outputs_desc, 'output'):
-            self.outputs.append(AgaveAppTaskOutput(src=out[0],
-                                                   label=out[1],
-                                                   wf_name=wf_name,
-                                                   task_name=self.name))
+            app_out = AgaveAppTaskOutput(src=out[0], label=out[1], wf_name=wf_name, task_name=self.name)
+            self.app_outputs.append(app_out)
+            self.outputs.append(app_out.task_output)
+
+        # we add an extra task input for AgaveAppTasks that contains the output files to be created (paths
+        # in the container) by the eod_job_submit container.
+        self.add_out_labels_input()
 
     def audit(self):
         """Run basic audits on a constructed task. Work in progress."""
@@ -506,84 +564,20 @@ class AgaveAppTask(BaseTask):
             cmd += '{}={} '.format(k, v)
         return cmd
 
+    def add_out_labels_input(self):
+        """Create a file containing the output paths and add it as a TaskInput."""
+        host_path = os.path.join(get_host_work_dir(self.wf_name), self.name, 'output_labels')
+        container_path = os.path.join(AGAVE_OUTPUTS_DIR, 'output_labels')
+        inp = AddedInput(host_path=host_path, container_path=container_path)
+        self.inputs.append(inp)
+        with open(host_path, 'w') as f:
+            for out in self.app_outputs:
+                print(out.task_output.src, file=f)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class Task(object):
-    """
-    Represents a pydoit task.
-    """
-
-    def get_doit_dict(self):
-        """
-        Returns a dictionary that can be used to generate a doit task.
-        """
-        file_deps = []
-        targets = []
-        if RUNNING_IN_DOCKER:
-            # pydoit paths need to refer to the endofday container if endofday is running in docker:
-            for volume in self.input_volumes:
-                file_deps.append(volume.docker_host_path)
-            for output in self.outputs:
-                if BASE in output.host_path:
-                    targets.append(output.host_path.replace(BASE, '/staging'))
-                elif output.host_path.startswith('/'):
-                    targets.append(os.path.join('/host', output.host_path[1:]))
-                else:
-                    targets.append(os.path.join('/host', output.host_path))
-        else:
-            file_deps = [volume.host_path for volume in self.input_volumes]
-            targets = [output.host_path for output in self.outputs]
-        self.doit_dict = {
-            'name': self.name,
-            'actions': [self.action],
-            'doc': self.description,
-            'targets': targets,
-            'file_dep': file_deps,
-        }
-        # print "Task:", self.name
-        # print "BASE:", BASE
-        # print "file_deps:", str(file_deps)
-        # print "outputs:", str(targets)
-
-class DockerLoader(TaskLoader):
-    @staticmethod
-    def load_tasks(cmd, opt_values, pos_args):
-        cpus = multiprocessing.cpu_count()
-        task_list = [dict_to_task(task.doit_dict) for task in tasks]
-        config = {'verbosity': 2}
-        if cpus > 1:
-            config['num_process'] = cpus
-            print "Using multiprocessing with", cpus, "processes."
-        return task_list, config
-
-
-def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
-    """
-    Load a yaml description to json, preserving the order of the stanzas.
-    """
-    class OrderedLoader(Loader):
-        pass
-    def construct_mapping(loader, node):
-        loader.flatten_mapping(node)
-        return object_pairs_hook(loader.construct_pairs(node))
-    OrderedLoader.add_constructor(
-        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
-        construct_mapping)
-    return yaml.load(stream, OrderedLoader)
+    def write_uris_for_inputs(self, global_inputs, tasks):
+        """Write the URIs to the input files for each AgaveInput."""
+        for inp in self.app_inputs:
+            inp.write_uris(global_inputs, tasks)
 
 
 class TaskFile(object):
@@ -600,13 +594,6 @@ class TaskFile(object):
         self.get_top_level_objects()
         self.top_level_audits()
         self.work_dir = os.path.join(EOD_CONTAINER_BASE, self.name)
-        self.executor = 'local'
-        # create an agave executor
-        if Config.get('execution', 'execution') == 'agave':
-            self.executor = 'agave'
-            self.ae = AgaveExecutor(wf_name=self.name)
-            self.ae.create_dir(path='global_inputs')
-        # the task objects associated with this workflow.
         self.tasks = []
 
     def basic_audits(self):
@@ -641,38 +628,66 @@ class TaskFile(object):
             if not len(inp_src.split('<-')) == 2:
                 raise Error("Invalid global input definition: " + str(inp_src))
             label, source = inp_src.split('<-')
-            self.global_inputs.append(GlobalInput(label.strip(), source.strip()))
+            self.global_inputs.append(GlobalInput(label.strip(), source.strip(). self.name))
 
     def create_tasks(self):
         """
         Creates a the task objects associated with the processes dictionary.
         """
+        # first, create the tasks from their descriptions
         for name, src in self.proc_dict.items():
-            task = Task(name, src, self.name)
-            task.audit()
-            self.tasks.append(task)
-
-    def create_actions(self):
-        """
-        Adds volumes and actions to each task now that the task file has been
-        parsed once.
-        """
-        for task in self.tasks:
-            # the input volumes (file mounts)
-            task.get_input_volumes(self.global_inputs, self.tasks)
-            # the pydoit action associated with this task
-            if self.executor == 'agave':
-                task.get_action(self.ae)
+            task_type = src.get('execution', 'docker')
+            # supported execution types are: 'docker', 'agave', and 'agave_app'
+            if task_type == 'agave_app':
+                task = AgaveAppTask(name, src, self.name)
             else:
-                task.get_action()
-            task.get_doit_dict()
+                task = SimpleDockerTask(name, src, self.name)
+            self.tasks.append(task)
+        # once all tasks are create, we can add the output volumes to each task
+        # and then set the action
+        for task in self.tasks:
+            task.set_output_volume_mounts(self.global_inputs, self.tasks)
+            task.set_volumes()
+            if isinstance(task, AgaveAppTask):
+                task.write_uris_for_inputs(self.global_inputs, self.tasks)
+            task.set_action()
+            task.set_doit_dict()
+
+
 
 def parse_yaml(yaml_file):
     task_file = TaskFile(yaml_file)
     task_file.create_glob_ins()
     task_file.create_tasks()
-    task_file.create_actions()
     return task_file
+
+
+class DockerLoader(TaskLoader):
+    @staticmethod
+    def load_tasks(cmd, opt_values, pos_args):
+        cpus = multiprocessing.cpu_count()
+        task_list = [dict_to_task(task.doit_dict) for task in tasks]
+        config = {'verbosity': 2}
+        if cpus > 1:
+            config['num_process'] = cpus
+            print("Using multiprocessing with {} processes.".format(cpus))
+        return task_list, config
+
+
+def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
+    """
+    Load a yaml description to json, preserving the order of the stanzas.
+    """
+    class OrderedLoader(Loader):
+        pass
+    def construct_mapping(loader, node):
+        loader.flatten_mapping(node)
+        return object_pairs_hook(loader.construct_pairs(node))
+    OrderedLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+        construct_mapping)
+    return yaml.load(stream, OrderedLoader)
+
 
 
 def main(yaml_file):
@@ -690,11 +705,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Execute workflow of docker containers described in a yaml file.')
     parser.add_argument('yaml_file', type=str,
                         help='Yaml file to parse')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true')
-    parser.set_defaults(verbose=False)
     args = parser.parse_args()
     verbose = args.verbose
-    if verbose:
-        print 'RUNNING_IN_DOCKER:', RUNNING_IN_DOCKER
     main(args.yaml_file)
     main()

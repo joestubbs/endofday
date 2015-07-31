@@ -23,6 +23,7 @@ name: agave_apps_example
 inputs:
     - input_1 <- agave://ex.storage.system//data/input.txt
     - input_2 <- agave://other.storage.system//home/jdoe/input.txt
+    - input_3 <- agave://other.storage.system//home/jdoe/foo.txt
 
 outputs:
     - green.just_some_label
@@ -37,9 +38,18 @@ processes:
         
         # the inputs section is a list of mappings from labels within the wf file to agave input id's in the
         # agave app description
+
         inputs:
-            - inputs.input_1 -> some_input_id
-            - inputs.input_2 -> some_other_input_id
+            some_input_id:
+                - inputs.input_1
+                - inputs.inputs_2
+            some_other_input_id
+                - inputs.input_3
+
+    ## OLD WAY
+    #        inputs:
+    #            - inputs.input_1 -> some_input_id
+    #            - inputs.input_2 -> some_other_input_id
         
         # the parameters section is a list of mappings from actual values to agave parameter id's in the
         # agave app description
@@ -59,7 +69,8 @@ processes:
         app_id: some_other_agave_app_id
         execution: agave_app
         inputs:
-            - inputs.input_1 -> some_input_id
+            some_input_id
+                - inputs.input_1
         parameters:
             - "true" -> some_param_id
         outputs:
@@ -69,8 +80,10 @@ processes:
         app_id: another_agave_app_id
         execution: agave_app
         inputs:
-            - blue.whatever_i_want -> some_input_id
-            - red.some_out_label -> some_other_input_id
+            some_input_id:
+                - blue.whatever_i_want
+            some_other_input_id:
+                - red.some_out_label
         outputs:
             - some_output_id -> just_some_label
 
@@ -89,17 +102,25 @@ converted a typical stanza above to the following:
             - inputs.input_1 -> /agave/inputs/some_input_id
             - inputs.input_2 -> /agave/inputs/some_other_input_id
 
+        *special input:
+            - wf_home/red/output_labels -> /agave/outputs/output_labels
+
         # each 'output' also becomes a file but in /agave/outputs. The submit.py creates these files once the
         # job finishes to signal to the eod engine that the step in the workflow is complete.
         outputs:
             -  /agave/outputs/some_out_label -> some_output_id
 
         # here we execute the script. the '/agave/output_labels' file is a special file loaded into the
-        # container by the eod engine. it simply contains the original 'outputs' stanza from the user's
-        # yaml file (the output_id -> label mappings). the submit.py needs this information in order to know
-        # which files it must create in the /agave/outputs/ directory.
+        # container by the eod engine. it simply contains the (container) paths to the files that should be
+        # created to signal the job has completed. the contents of these files should be the URIs and the
+        # submit script will fill those after communicating with agave.
 
         # the parameters are passed in directly on the command line.
         command: python submit.py /agave/output_labels app_id=some_agave_app_id some_param_id="1" some_other_param_id="verbose"
 
 
+Notes:
+  - some inputs to a given app_id will be global inputs and some will be outputs of another task. in either
+  case, the input can be resolved to a URI and the URI will be the contents of the file.
+  - these "stub" files will be created by the eod engine for global inputs but by the eod_submit_job container
+  for task outputs.
