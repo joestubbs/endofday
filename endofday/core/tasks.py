@@ -61,7 +61,7 @@ class GlobalInput(object):
 
     """
 
-    def __init__(self, label, src, wf_name):
+    def __init__(self, label, src):
         # a label to reference this input by in other parts of the wf file.
         self.label = label
 
@@ -84,6 +84,12 @@ class GlobalInput(object):
             if not self.abs_host_path:
                 raise Error("Could not compute host path for src:{}, label:{}".format(src, label))
             self.eod_container_path = to_eod(self.abs_host_path)
+
+    def __str__(self):
+        return 'GlobalInput:' + self.label
+
+    def __ref__(self):
+        return 'GlobalInput:' + self.label
 
     def set_abs_host_path(self):
         """Compute the absolute host path for this global input."""
@@ -123,12 +129,15 @@ def resolve_source(src, global_inputs, tasks):
                 break
         else:
             # didn't find the task label
-            raise Error("Input reference not found: " + str(src_task))
+            raise Error("Input reference to task not found. src:{}, src_task:{}, src_name:{}, Sources:{}".format(src, src_task, src_name, tasks))
     for source in sources:
         if source.label == src_name:
             return source
     else: # this is on for loop: if we did not break, we did not find the input
-        raise Error("Input reference not found: " + str(src_task))
+        sources_str = ''
+        for source in sources:
+            sources_str += source.label + ', '
+        raise Error("Input reference not found. src:{}, src_task:{}, src_name:{}, Sources:{}".format(src, src_task, src_name, sources_str))
 
 
 class TaskInput(object):
@@ -326,7 +335,7 @@ class BaseDockerTask(object):
                 raise Error("Invalid {} format in {} process: {} ".format(kind, self.name, obj) +
                             " Format should be: <source> -> <destination>")
             src, dest = obj.split('->')
-            result.append((src, dest))
+            result.append((src.strip(), dest.strip()))
         return result
 
     def set_output_volume_mounts(self):
@@ -482,8 +491,14 @@ class SimpleDockerTask(BaseDockerTask):
         """Run basic audits on a constructed task. Work in progress."""
         if not self.name:
             raise Error("Name required for every task.")
+        if not type(self.name) == str:
+            raise Error("Name must be a string.")
+        self.name = self.name.strip()
         if not self.image:
             raise Error("No image specified for task: " + self.name)
+        if not type(self.image) == str:
+            raise Error("Image must be a string.")
+        self.image = self.image.strip()
         if self.execution == 'agave' or self.execution == 'local':
             pass
         else:
@@ -620,7 +635,7 @@ class TaskFile(object):
             if not len(inp_src.split('<-')) == 2:
                 raise Error("Invalid global input definition: " + str(inp_src))
             label, source = inp_src.split('<-')
-            glob = GlobalInput(label.strip(), source.strip(), self.name)
+            glob = GlobalInput(label.strip(), source.strip())
             self.global_inputs.append(glob)
 
     def create_tasks(self):
@@ -640,7 +655,7 @@ class TaskFile(object):
         # and then set the action
         for task in self.tasks:
             task.set_output_volume_mounts()
-            task.set_volumes()
+            task.set_input_volumes(self.global_inputs, self.tasks)
             if isinstance(task, AgaveAppTask):
                 task.write_uris_for_inputs(self.global_inputs, self.tasks)
             task.set_action()
