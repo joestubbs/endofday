@@ -8,11 +8,14 @@ ADD nextflow.config /
 RUN apt-get install -y curl
 RUN curl -sSL https://get.docker.com/ubuntu/ | sudo sh
 
+ADD requirements.txt /requirements.txt
+RUN pip install -r /requirements.txt
+
 # supply a default config
 ADD endofday.conf /endofday.conf
 
 ADD core /core
-RUN pip install -r /core/requirements.txt
+ADD tests /tests
 
 ENV STAGING /staging
 ENV STAGING_DIR /staging
