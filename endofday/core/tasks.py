@@ -639,7 +639,7 @@ class TaskFile(object):
         # once all tasks are created, we can add the output volumes to each task
         # and then set the action
         for task in self.tasks:
-            task.set_output_volume_mounts(self.global_inputs, self.tasks)
+            task.set_output_volume_mounts()
             task.set_volumes()
             if isinstance(task, AgaveAppTask):
                 task.write_uris_for_inputs(self.global_inputs, self.tasks)
