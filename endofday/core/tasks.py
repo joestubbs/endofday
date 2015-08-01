@@ -80,10 +80,12 @@ class GlobalInput(object):
             self.is_uri = True
             self.uri = self.src
         else:
-            self.abs_host_path = self.set_abs_host_path(wf_name)
+            self.set_abs_host_path()
+            if not self.abs_host_path:
+                raise Error("Could not compute host path for src:{}, label:{}".format(src, label))
             self.eod_container_path = to_eod(self.abs_host_path)
 
-    def set_abs_host_path(self, wf_name):
+    def set_abs_host_path(self):
         """Compute the absolute host path for this global input."""
         if self.src.startswith('/'):
             self.abs_host_path = self.src
@@ -618,7 +620,8 @@ class TaskFile(object):
             if not len(inp_src.split('<-')) == 2:
                 raise Error("Invalid global input definition: " + str(inp_src))
             label, source = inp_src.split('<-')
-            self.global_inputs.append(GlobalInput(label.strip(), source.strip(). self.name))
+            glob = GlobalInput(label.strip(), source.strip(), self.name)
+            self.global_inputs.append(glob)
 
     def create_tasks(self):
         """
@@ -633,7 +636,7 @@ class TaskFile(object):
             else:
                 task = SimpleDockerTask(name, src, self.name)
             self.tasks.append(task)
-        # once all tasks are create, we can add the output volumes to each task
+        # once all tasks are created, we can add the output volumes to each task
         # and then set the action
         for task in self.tasks:
             task.set_output_volume_mounts(self.global_inputs, self.tasks)
@@ -642,7 +645,6 @@ class TaskFile(object):
                 task.write_uris_for_inputs(self.global_inputs, self.tasks)
             task.set_action()
             task.set_doit_dict()
-
 
 
 def parse_yaml(yaml_file):
