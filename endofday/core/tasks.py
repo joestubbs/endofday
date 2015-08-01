@@ -451,7 +451,7 @@ class SimpleDockerTask(BaseDockerTask):
     """ Represents a task that executes a docker container.
     """
     def __init__(self, name, desc, wf_name):
-        super(SimpleDockerTask).__init__(self, name, desc, wf_name)
+        super(SimpleDockerTask, self).__init__(name, desc, wf_name)
 
         # docker image to use
         self.image = desc.get('image')
@@ -498,7 +498,7 @@ class AgaveAppTask(BaseDockerTask):
     attributes pertaining to the Agave app.
     """
     def __init__(self, name, desc, wf_name):
-        super(AgaveAppTask).__init__(self, name, desc, wf_name)
+        super(AgaveAppTask, self).__init__(name, desc, wf_name)
 
         # app_id to submit
         self.app_id = desc.get('app_id')
