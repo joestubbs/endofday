@@ -184,6 +184,9 @@ class AddedInput(object):
     def __init__(self, host_path, container_path):
         self.host_path = host_path
         self.container_path = container_path
+        self.abs_host_path = host_path
+        # in this case, the real_source is this input so reference it directly.
+        self.real_source = self
 
     def set_volume(self, global_inputs, tasks):
         self.volume = Volume(self.host_path, self.container_path)
@@ -261,6 +264,9 @@ class AgaveAppTaskInput(object):
         for source in self.sources_desc:
             real_source = resolve_source(source, global_inputs, tasks)
             self.uris.append(real_source.uri)
+        base_dir = os.path.dirname(self.task_input.host_path)
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
         with open(self.task_input.host_path, 'w') as f:
             for uri in self.uris:
                 print(uri, file=f)
@@ -284,7 +290,7 @@ class AgaveAppTaskOutput(object):
         self.task_name = task_name
 
         # create a task output for the eod_submit_job container
-        self.task_output = TaskOutput(src=os.path.join(AGAVE_OUTPUTS_DIR, self.label),
+        self.task_output = TaskOutput(src=os.path.join(AGAVE_OUTPUTS_DIR, self.src),
                                       label=self.label,
                                       wf_name=self.wf_name,
                                       task_name=self.task_name)
@@ -575,9 +581,12 @@ class AgaveAppTask(BaseDockerTask):
     def add_out_labels_input(self):
         """Create a file containing the output paths and add it as a TaskInput."""
         host_path = os.path.join(get_host_work_dir(self.wf_name), self.name, 'output_labels')
+        base_dir = os.path.dirname(host_path)
         container_path = os.path.join(AGAVE_OUTPUTS_DIR, 'output_labels')
         inp = AddedInput(host_path=host_path, container_path=container_path)
         self.inputs.append(inp)
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
         with open(host_path, 'w') as f:
             for out in self.app_outputs:
                 print(out.task_output.src, file=f)

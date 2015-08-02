@@ -4,7 +4,7 @@ Tests for the tasks module.
 To run the tests:
 1. Make sure endofday.conf has necessary fields for interacting with iplant.
 2. If not putting them in the config, export AGAVE_CLIENT_SECRET and AGAVE_PASSWORD as env vars.
-3. Build the latest eod container and run tests using the alias
+3. Build the latest eod container and run tests using:
     $ docker run --rm -it --entrypoint=py.test -v /:/host -v $(pwd):/staging -e RUNNING_IN_DOCKER=true -e STAGING_DIR=/testsuite/cwd/on/host eod /tests/test_tasks.py
 
 """
@@ -27,6 +27,16 @@ def task_file():
     # task_file.create_glob_ins()
     # task_file.create_tasks()
     return task_file
+
+@pytest.fixture(scope='session')
+def agave_task_file():
+    tf_path = os.path.join(HERE, 'sample_agave_wf.yml')
+    agave_task_file = parse_yaml(tf_path)
+    # task_file = TaskFile(tf_path)
+    # task_file.create_glob_ins()
+    # task_file.create_tasks()
+    return agave_task_file
+
 
 def test_basic_task_file_attrs(task_file):
     assert task_file.path == os.path.join(HERE, 'sample_wf.yml')
@@ -197,3 +207,62 @@ def test_sum_inputs(task_file):
     assert inp.dest == '/data/loc_in'
     assert inp.src_name == 'loc_in'
     assert inp.src_task == 'inputs'
+
+
+
+# agave_task_file tests
+def test_agave_basic_task_file_attrs(agave_task_file):
+    assert agave_task_file.path == os.path.join(HERE, 'sample_agave_wf.yml')
+    assert agave_task_file.name == 'test_suite_wf'
+    assert agave_task_file.glob_ins[0] == 'input <- agave://ex.storage.system//data/input.txt'
+    assert agave_task_file.glob_ins[1] == 'input_2 <- agave://other.storage.system//home/jdoe/foo'
+    assert agave_task_file.global_inputs[0].label == 'input'
+    assert agave_task_file.global_inputs[0].src == 'agave://ex.storage.system//data/input.txt'
+    assert agave_task_file.global_inputs[1].src == 'agave://other.storage.system//home/jdoe/foo'
+    assert agave_task_file.global_inputs[1].label == 'input_2'
+
+def test_agave_global_inputs(agave_task_file):
+    assert len(agave_task_file.global_inputs) == 2
+    glob_in = agave_task_file.global_inputs[0]
+    assert glob_in.label == 'input'
+    assert glob_in.is_uri
+    assert glob_in.uri == 'agave://ex.storage.system//data/input.txt'
+
+    glob_in = agave_task_file.global_inputs[1]
+    assert glob_in.label == 'input_2'
+    assert glob_in.is_uri
+    assert glob_in.uri == 'agave://other.storage.system//home/jdoe/foo'
+
+def test_agave_tasks_length(agave_task_file):
+    assert len(agave_task_file.tasks) == 1
+
+def test_agave_tasks_names_and_order(agave_task_file):
+    assert agave_task_file.tasks[0].name == 'add_5'
+
+# add_5 tests
+def test_agave_add_5_task_outputs(agave_task_file):
+    task = agave_task_file.tasks[0]
+    assert len(task.outputs) == 1
+    out = task.outputs[0]
+    assert out.src == '/agave/outputs/output_id_1'
+    assert out.label == 'some_output'
+    assert out.task_name == 'add_5'
+    assert out.eod_container_path == '/staging/test_suite_wf/add_5/agave/outputs/output_id_1'
+    assert out.abs_host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_id_1'
+
+def test_agave_add_5_output_volume_mounts(agave_task_file):
+    task = agave_task_file.tasks[0]
+    assert len(task.output_volume_mounts) == 1
+    vmount = task.output_volume_mounts[0]
+    assert vmount.container_path == '/agave/outputs'
+    assert vmount.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs'
+
+def test_agave_add_5_input_volumes(agave_task_file):
+    task = agave_task_file.tasks[0]
+    assert len(task.input_volumes) == 2 # one more than the actual number of inputs
+    inpv = task.input_volumes[0]
+    assert inpv.container_path == '/agave/inputs/input_id_1'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/input_id_1'
+    inpv = task.input_volumes[1]
+    assert inpv.container_path == '/agave/outputs/output_labels'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/output_labels'
