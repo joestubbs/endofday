@@ -714,6 +714,5 @@ if __name__ == '__main__':
     parser.add_argument('yaml_file', type=str,
                         help='Yaml file to parse')
     args = parser.parse_args()
-    verbose = args.verbose
     main(args.yaml_file)
     main()
