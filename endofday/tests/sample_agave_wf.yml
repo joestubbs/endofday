@@ -1,0 +1,23 @@
+name: test_suite_wf
+
+inputs:
+    - input <- agave://ex.storage.system//data/input.txt
+    - input_2 <- agave://other.storage.system//home/jdoe/foo
+
+outputs:
+    - sum.output
+
+processes:
+    add_5:
+        app_id: add_n
+        execution: agave_app
+        description: Add 5 to all inputs.
+        inputs:
+            input_id_1:
+                - inputs.input
+                - inputs.input_2
+        parameters:
+            "1": some_param_id
+            verbose: some_other_param_id
+        outputs:
+            - output_id_1 -> some_output
