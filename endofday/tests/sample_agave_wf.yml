@@ -21,3 +21,15 @@ processes:
             verbose: some_other_param_id
         outputs:
             - output_id_1 -> some_output
+
+    mult_n:
+        app_id: mult_n
+        execution: agave_app
+        inputs:
+            some_input_id:
+                - add_5.some_output
+                - inputs.input
+            some_other_input_id:
+                - inputs.input_2
+        outputs:
+            - some_output_id -> just_some_label

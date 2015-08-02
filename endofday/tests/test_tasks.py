@@ -234,10 +234,11 @@ def test_agave_global_inputs(agave_task_file):
     assert glob_in.uri == 'agave://other.storage.system//home/jdoe/foo'
 
 def test_agave_tasks_length(agave_task_file):
-    assert len(agave_task_file.tasks) == 1
+    assert len(agave_task_file.tasks) == 2
 
 def test_agave_tasks_names_and_order(agave_task_file):
     assert agave_task_file.tasks[0].name == 'add_5'
+    assert agave_task_file.tasks[1].name == 'mult_n'
 
 # add_5 tests
 def test_agave_add_5_task_outputs(agave_task_file):
@@ -259,10 +260,53 @@ def test_agave_add_5_output_volume_mounts(agave_task_file):
 
 def test_agave_add_5_input_volumes(agave_task_file):
     task = agave_task_file.tasks[0]
-    assert len(task.input_volumes) == 2 # one more than the actual number of inputs
+    assert len(task.input_volumes) == 3 # one more than the actual number of inputs
     inpv = task.input_volumes[0]
-    assert inpv.container_path == '/agave/inputs/input_id_1'
-    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/input_id_1'
+    assert inpv.container_path == '/agave/inputs/input_id_1/0'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/global_inputs/input'
+
     inpv = task.input_volumes[1]
+    assert inpv.container_path == '/agave/inputs/input_id_1/1'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2'
+
+    inpv = task.input_volumes[2]
     assert inpv.container_path == '/agave/outputs/output_labels'
     assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/output_labels'
+
+
+# mult_n tests
+def test_agave_mult_n_task_outputs(agave_task_file):
+    task = agave_task_file.tasks[1]
+    assert len(task.outputs) == 1
+    out = task.outputs[0]
+    assert out.src == '/agave/outputs/some_output_id'
+    assert out.label == 'just_some_label'
+    assert out.task_name == 'mult_n'
+    assert out.eod_container_path == '/staging/test_suite_wf/mult_n/agave/outputs/some_output_id'
+    assert out.abs_host_path == '/testsuite/cwd/on/host/test_suite_wf/mult_n/agave/outputs/some_output_id'
+
+def test_agave_mult_n_output_volume_mounts(agave_task_file):
+    task = agave_task_file.tasks[1]
+    assert len(task.output_volume_mounts) == 1
+    vmount = task.output_volume_mounts[0]
+    assert vmount.container_path == '/agave/outputs'
+    assert vmount.host_path == '/testsuite/cwd/on/host/test_suite_wf/mult_n/agave/outputs'
+
+def test_agave_mult_n_input_volumes(agave_task_file):
+    task = agave_task_file.tasks[1]
+    # assert len(task.input_volumes) == 4 # one more than the actual number of inputs
+    inpv = task.input_volumes[0]
+    assert inpv.container_path == '/agave/inputs/some_input_id/0'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_id_1'
+
+    inpv = task.input_volumes[1]
+    assert inpv.container_path == '/agave/inputs/some_input_id/1'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/global_inputs/input'
+
+    inpv = task.input_volumes[2]
+    assert inpv.container_path == '/agave/inputs/some_other_input_id/0'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2'
+
+    inpv = task.input_volumes[3]
+    assert inpv.container_path == '/agave/outputs/output_labels'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/mult_n/output_labels'

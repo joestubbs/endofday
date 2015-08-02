@@ -91,17 +91,19 @@ converted a typical stanza above to the following:
         # use a generic image to submit the job
         image: eod_submit_job
 
-        # each 'input' becomes a file in a specific directory (/agave/inputs) and the contents of the file
+        # each 'input' becomes a file in a specific directory (/agave/inputs/input_id/) and the contents of the file
         # are the (resolved) URI.
         inputs:
-            - inputs.input_1 -> /agave/inputs/some_input_id
-            - inputs.input_2 -> /agave/inputs/some_other_input_id
+            - inputs.input_1 -> /agave/inputs/some_input_id/1
+            - inputs.input_2 -> /agave/inputs/some_input_id/2
+            - inputs.input_3 -> /agave/inputs/some_other_input_id/1
 
         *special input:
             - wf_home/red/output_labels -> /agave/outputs/output_labels
 
         # each 'output' also becomes a file but in /agave/outputs. The submit.py creates these files once the
         # job finishes to signal to the eod engine that the step in the workflow is complete.
+        # The contents are the URI where the file can be found.
         outputs:
             -  /agave/outputs/some_out_label -> some_output_id
 

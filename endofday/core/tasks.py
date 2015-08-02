@@ -61,7 +61,7 @@ class GlobalInput(object):
 
     """
 
-    def __init__(self, label, src):
+    def __init__(self, label, src, wf_name):
         # a label to reference this input by in other parts of the wf file.
         self.label = label
 
@@ -79,11 +79,18 @@ class GlobalInput(object):
         if rfc3987.match(self.src, 'URI'):
             self.is_uri = True
             self.uri = self.src
-        else:
-            self.set_abs_host_path()
-            if not self.abs_host_path:
-                raise Error("Could not compute host path for src:{}, label:{}".format(src, label))
-            self.eod_container_path = to_eod(self.abs_host_path)
+
+        self.set_abs_host_path(wf_name)
+        if not self.abs_host_path:
+            raise Error("Could not compute host path for src:{}, label:{}".format(src, label))
+        self.eod_container_path = to_eod(self.abs_host_path)
+        # create a file with the URI
+        base_dir = os.path.dirname(self.eod_container_path)
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+        if self.is_uri:
+            with open(self.eod_container_path, 'w') as f:
+                print(self.uri, file=f)
 
     def __str__(self):
         return 'GlobalInput:' + self.label
@@ -91,13 +98,18 @@ class GlobalInput(object):
     def __ref__(self):
         return 'GlobalInput:' + self.label
 
-    def set_abs_host_path(self):
+    def set_abs_host_path(self, wf_name):
         """Compute the absolute host path for this global input."""
-        if self.src.startswith('/'):
-            self.abs_host_path = self.src
-        # otherwise, it's a relative path so it will be in the HOST_BASE
+        if self.is_uri:
+            self.abs_host_path = os.path.join(get_host_work_dir(wf_name),
+                                              'global_inputs',
+                                              self.label)
         else:
-            self.abs_host_path = os.path.join(HOST_BASE, self.src)
+            if self.src.startswith('/'):
+                self.abs_host_path = self.src
+            # otherwise, it's a relative path so it will be in the HOST_BASE
+            else:
+                self.abs_host_path = os.path.join(HOST_BASE, self.src)
 
 
 class Volume(object):
@@ -247,29 +259,21 @@ class AgaveAppTaskInput(object):
     """
     Represents an input to a task which is of execution type 'agave_app'
     """
-    def __init__(self, input_id, sources_desc, wf_name, task_name):
+    def __init__(self, input_id, source_desc, idx):
         # The Agave app input id for this input
         self.input_id = input_id
 
-        # a list of sources (labels), each of which refers to either a global input or a task output.
-        self.sources_desc = sources_desc
+        # a source (label), which refers to either a global input or a task output.
+        self.source_desc = source_desc
+
+        # the index of this input for the input_id
+        self.idx = idx
 
         # create a task input for the eod_submit_job container
-        self.task_input = AddedInput(host_path=os.path.join(get_host_work_dir(wf_name), task_name, self.input_id),
-                                     container_path=os.path.join(AGAVE_INPUTS_DIR, self.input_id))
-
-    def write_uris(self, global_inputs, tasks):
-        """Write the absolute uris for this input which can be passed to the Agave job submission"""
-        self.uris = []
-        for source in self.sources_desc:
-            real_source = resolve_source(source, global_inputs, tasks)
-            self.uris.append(real_source.uri)
-        base_dir = os.path.dirname(self.task_input.host_path)
-        if not os.path.exists(base_dir):
-            os.makedirs(base_dir)
-        with open(self.task_input.host_path, 'w') as f:
-            for uri in self.uris:
-                print(uri, file=f)
+        self.task_input = TaskInput(src=source_desc,
+                                    dest=os.path.join(AGAVE_INPUTS_DIR,
+                                                      input_id,
+                                                      str(idx)))
 
 
 class AgaveAppTaskOutput(object):
@@ -527,6 +531,8 @@ class AgaveAppTask(BaseDockerTask):
 
         # parameters for the Agave app execution
         self.params_desc = desc.get('parameters')
+        if not self.params_desc:
+            self.params_desc = {}
 
         # image for the eod_job_submit container
         self.image = 'jstubbs/eod_job_submit'
@@ -547,9 +553,10 @@ class AgaveAppTask(BaseDockerTask):
         # the inputs_desc is a dictionary whose keys are agave app input id's and whose values
         # are a list of sources (labels) to use.
         for inp_id, sources in self.inputs_desc.items():
-            app_inp = AgaveAppTaskInput(inp_id, sources, wf_name, self.name)
-            self.app_inputs.append(app_inp)
-            self.inputs.append(app_inp.task_input)
+            for idx, source_desc in enumerate(sources):
+                app_inp = AgaveAppTaskInput(inp_id, source_desc, idx)
+                self.app_inputs.append(app_inp)
+                self.inputs.append(app_inp.task_input)
 
         # create the AgaveAppTaskOutput objects
         for out in self.parse_in_out_desc(self.outputs_desc, 'output'):
@@ -590,11 +597,6 @@ class AgaveAppTask(BaseDockerTask):
         with open(host_path, 'w') as f:
             for out in self.app_outputs:
                 print(out.task_output.src, file=f)
-
-    def write_uris_for_inputs(self, global_inputs, tasks):
-        """Write the URIs to the input files for each AgaveInput."""
-        for inp in self.app_inputs:
-            inp.write_uris(global_inputs, tasks)
 
 
 class TaskFile(object):
@@ -645,7 +647,7 @@ class TaskFile(object):
             if not len(inp_src.split('<-')) == 2:
                 raise Error("Invalid global input definition: " + str(inp_src))
             label, source = inp_src.split('<-')
-            glob = GlobalInput(label.strip(), source.strip())
+            glob = GlobalInput(label.strip(), source.strip(), self.name)
             self.global_inputs.append(glob)
 
     def create_tasks(self):
@@ -666,8 +668,6 @@ class TaskFile(object):
         for task in self.tasks:
             task.set_output_volume_mounts()
             task.set_input_volumes(self.global_inputs, self.tasks)
-            if isinstance(task, AgaveAppTask):
-                task.write_uris_for_inputs(self.global_inputs, self.tasks)
             task.set_action()
             task.set_doit_dict()
 
