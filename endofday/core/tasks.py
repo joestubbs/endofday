@@ -561,8 +561,8 @@ class AgaveAppTask(BaseDockerTask):
             raise Error("Name required for every task.")
         if not self.app_id:
             raise Error("No app_id specified for task: {}".format(self.name))
-        if not type(self.params_desc) == dict:
-            raise Error("Parameters should be specified as a dictionary.")
+        if not type(self.params_desc) == dict and not type(self.params_desc) == OrderedDict:
+            raise Error("Parameters should be specified as a dictionary, got {} instead".format(type(self.params_desc)))
 
     def get_container_command(self):
         """Returns the command to run inside the eod_job_submit container."""
