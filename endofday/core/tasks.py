@@ -110,7 +110,7 @@ class Volume(object):
 
     def to_str(self):
         """ Return a string that can be used in a docker command. """
-        return '{}:{} '.format(self.host_path, self.container_path)
+        return '-v {}:{} '.format(self.host_path, self.container_path)
 
 
 def resolve_source(src, global_inputs, tasks):
@@ -375,7 +375,7 @@ class BaseDockerTask(object):
         for volume in self.output_volume_mounts:
             output_str += volume.to_str()
         docker_cmd += output_str
-        input_str = ' '
+        input_str = ''
         for inp in self.inputs:
             input_str += inp.volume.to_str()
         docker_cmd += input_str
@@ -383,9 +383,9 @@ class BaseDockerTask(object):
             for k,v in envs.items():
                 docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
         # add the image:
-        docker_cmd += ' ' + self.image
+        docker_cmd += self.image + ' '
         # add the command:
-        docker_cmd += ' ' + self.command
+        docker_cmd += self.command
         return docker_cmd, output_str, input_str
 
     def set_action(self, executor=None):
@@ -504,7 +504,8 @@ class SimpleDockerTask(BaseDockerTask):
         else:
             raise Error("Invalid execution specified for task:{}. " +
                         "Valid options are: local, agave.".format(self.name))
-
+        if self.command:
+            self.command = self.command.strip()
 
 class AgaveAppTask(BaseDockerTask):
     """ Represents a task to execute an agave app by submitting a job. Translates a description of an
