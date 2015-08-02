@@ -541,7 +541,7 @@ class AgaveAppTask(BaseDockerTask):
         # the inputs_desc is a dictionary whose keys are agave app input id's and whose values
         # are a list of sources (labels) to use.
         for inp_id, sources in self.inputs_desc.items():
-            app_inp = AgaveAppTaskInput(inp_id, sources)
+            app_inp = AgaveAppTaskInput(inp_id, sources, wf_name, self.name)
             self.app_inputs.append(app_inp)
             self.inputs.append(app_inp.task_input)
 
