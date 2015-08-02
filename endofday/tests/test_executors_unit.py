@@ -1,9 +1,23 @@
+"""
+Unit tests for the executors module.
+
+To run the tests:
+1. Make sure endofday.conf has necessary fields for interacting with iplant.
+2. If not putting them in the config, export AGAVE_CLIENT_SECRET and AGAVE_PASSWORD as env vars.
+3. Build the latest eod container and run tests using:
+    $ docker run --rm -it --entrypoint=py.test -v /:/host -v $(pwd):/staging -e RUNNING_IN_DOCKER=true -e STAGING_DIR=/testsuite/cwd/on/host eod /tests/test_executors_unit.py
+
+"""
+
 import json
 import os
+import sys
 import pytest
 
-from endofday.core.tasks import parse_yaml, ordered_load
-from endofday.core.executors import AgaveExecutor
+sys.path.append('/')
+
+from core.tasks import parse_yaml, ordered_load
+from core.executors import AgaveExecutor
 
 SYSTEM_ID = 'data.iplantcollaborative.org'
 
