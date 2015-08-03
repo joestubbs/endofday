@@ -106,7 +106,7 @@ class AgaveExecutor(object):
 
     def __init__(self, wf_name, url=None, username=None, password=None,
                  client_name=None, client_key=None, client_secret=None,
-                 storage_system=None, home_dir=None, verify=None):
+                 storage_system=None, home_dir=None, verify=None, create_home_dir=True):
         self.from_config()
         if not url:
             url = self.api_server
@@ -140,14 +140,15 @@ class AgaveExecutor(object):
         self.system_homedir = rsp.get('storage').get('homeDir')
         self.working_dir = os.path.join(self.home_dir, wf_name)
         # create the working directory now
-        try:
-            rsp = self.ag.files.manage(systemId=self.storage_system,
-                                       filePath=self.home_dir,
-                                       body={'action':'mkdir',
-                                             'path':wf_name})
-        except (requests.exceptions.HTTPError, AgaveException):
-            # if the directory already exists we could get an error trying to create it.
-            pass
+        if create_home_dir:
+            try:
+                rsp = self.ag.files.manage(systemId=self.storage_system,
+                                           filePath=self.home_dir,
+                                           body={'action':'mkdir',
+                                                 'path':wf_name})
+            except (requests.exceptions.HTTPError, AgaveException):
+                # if the directory already exists we could get an error trying to create it.
+                pass
 
     def from_config(self):
         """
@@ -522,3 +523,10 @@ class AgaveExecutor(object):
         if type(rsp) == dict:
             raise Error("Error trying to submit job for task: " + task.name + ' job: ' + str(job) + '. Response: ' + str(rsp))
         return AgaveAsyncResponse(self.ag, rsp)
+
+
+class AgaveAppExecutor(AgaveExecutor):
+    """Executor to use to submit Agave jobs to run specific apps."""
+
+    def get_action(self, task):
+        return task.local_action_fn
