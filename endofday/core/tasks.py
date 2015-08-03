@@ -398,22 +398,22 @@ class BaseDockerTask(object):
         docker_cmd += self.command
         return docker_cmd, output_str, input_str
 
+    def local_action_fn(self):
+        """
+        Execute the docker container on the local machine.
+        """
+        self.pre_action()
+        docker_cmd, _, _ = self.get_docker_command(envs=getattr(self, 'envs', None))
+        # now, execute the container
+        proc = subprocess.Popen(docker_cmd, shell=True)
+        proc.wait()
+        self.post_action()
+
     def set_action(self, executor=None):
         """
         The action for a task is the function that is actually called by
         pydoit to execute the task.
         """
-
-        def local_action_fn():
-            """
-            Execute the docker container on the local machine.
-            """
-            self.pre_action()
-            docker_cmd, _, _ = self.get_docker_command()
-            # now, execute the container
-            proc = subprocess.Popen(docker_cmd, shell=True)
-            proc.wait()
-            self.post_action()
 
         # if the task instance has its own executor, use that:
         if hasattr(self, 'executor'):
@@ -423,7 +423,7 @@ class BaseDockerTask(object):
             self.action = executor.get_action(self)
         # otherwise, use the local action
         else:
-            self.action = local_action_fn
+            self.action = self.local_action_fn
 
     def pre_action(self):
         """Subclasses can override this method to do any task pre-processing before the
@@ -568,6 +568,10 @@ class AgaveAppTask(BaseDockerTask):
         # in the container) by the eod_job_submit container.
         self.add_out_labels_input()
 
+        # each task has an AgaveExecutor object that is capable of generating an access and refresh token
+        # right before it submits ths job.
+        self.ag = AgaveExecutor(wf_name=wf_name, create_home_dir=False)
+
     def audit(self):
         """Run basic audits on a constructed task. Work in progress."""
         if not self.name:
@@ -598,6 +602,10 @@ class AgaveAppTask(BaseDockerTask):
             for out in self.app_outputs:
                 print(out.task_output.src, file=f)
 
+    def pre_action(self):
+        """ Get a current access token right before executing"""
+        self.envs = {'access_token': self.ag.token_info['access_token'],
+                     'refresh_token': self.ag.token_info['refresh_token']}
 
 class TaskFile(object):
     """
