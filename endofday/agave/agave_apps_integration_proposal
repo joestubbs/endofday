@@ -49,8 +49,8 @@ processes:
         # the parameters section is a list of mappings from actual values to agave parameter id's in the
         # agave app description
         parameters:
-            - "1" -> some_param_id
-            - "verbose" -> some_other_param_id
+            some_param_id: 1
+            some_other_param_id: verbose
             
         # the outputs section is a mapping from *some agave-native way* to reference the output of a job
         # to labels within the wf file. Right now, the LHS needs some work because very few Agave app actually
@@ -67,7 +67,7 @@ processes:
             some_input_id
                 - inputs.input_1
         parameters:
-            - "true" -> some_param_id
+            some_param_id: true
         outputs:
             - some_output_id -> whatever_i_want
 
