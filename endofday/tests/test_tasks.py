@@ -273,6 +273,10 @@ def test_agave_add_5_input_volumes(agave_task_file):
     assert inpv.container_path == '/agave/outputs/output_labels'
     assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/output_labels'
 
+def test_agave_add_5_docker_command(agave_task_file):
+    task = agave_task_file.tasks[0]
+    cmd, _, _ = task.get_docker_command()
+    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs:/agave/outputs -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input:/agave/inputs/input_id_1/0 -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2:/agave/inputs/input_id_1/1 -v /testsuite/cwd/on/host/test_suite_wf/add_5/output_labels:/agave/outputs/output_labels jstubbs/eod_job_submit python submit.py /agave/output_labels app_id=add_n some_param_id=1 some_other_param_id=verbose '
 
 # mult_n tests
 def test_agave_mult_n_task_outputs(agave_task_file):
@@ -294,7 +298,7 @@ def test_agave_mult_n_output_volume_mounts(agave_task_file):
 
 def test_agave_mult_n_input_volumes(agave_task_file):
     task = agave_task_file.tasks[1]
-    # assert len(task.input_volumes) == 4 # one more than the actual number of inputs
+    assert len(task.input_volumes) == 4 # one more than the actual number of inputs
     inpv = task.input_volumes[0]
     assert inpv.container_path == '/agave/inputs/some_input_id/0'
     assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_id_1'

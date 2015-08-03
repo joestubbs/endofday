@@ -17,8 +17,8 @@ processes:
                 - inputs.input
                 - inputs.input_2
         parameters:
-            "1": some_param_id
-            verbose: some_other_param_id
+            some_param_id: 1
+            some_other_param_id: verbose
         outputs:
             - output_id_1 -> some_output
 
