@@ -22,10 +22,68 @@
 
 
 from __future__ import print_function
+import glob
+import os
+import sys
+
+import jinja2
+
+from core.template import ConfigGen
+from core.error import Error
+
+HERE = os.path.dirname(os.path.abspath((__file__)))
+
+JOB_TEMPLATE = '/job.j2'
+
+CLIENT_KEY = ''
+
+CLIENT_SECRET = ''
+
+def get_inputs():
+    """ Returns a dictionary of the form { <input_id>:[<uri_1>, ...,<uri_n>] }. """
+    # immediate subdirectories are the input ids
+    input_ids = [y for y in os.listdir('/agave/inputs') if os.path.isdir(y)]
+    inputs = {}
+    for input_id in input_ids:
+        uris = []
+        for name in os.listdir(os.path.join('/agave/inputs/',input_id)):
+            with open(os.path.join('/agave/inputs/',input_id, name), 'r') as f:
+                uri = f.readline()
+                if '://' in uri:
+                    uris.append(uri)
+        inputs[input_id] = uris
+    return inputs
+
+def get_outputs():
+    """Reads /agave/outputs/output_labels file and returns a list of Agave outputs to look for
+    after the job completes. The strings are either paths relative to the job work directory of
+    output id's defined in the agave app description.
+    """
+    outputs = []
+    with open('/agave/outputs/output_labels', 'r') as f:
+        job_path_or_id = f.readline()
+        outputs.append(job_path_or_id)
+    return outputs
+
+def submit_job(app_id, inputs, params, outputs,access_token, refresh_token):
+    context = {'app_id': app_id}
+
+    conf = ConfigGen(JOB_TEMPLATE)
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
+    job = conf.compile(context, env)
 
 
 def main():
-    pass
+    args = dict([arg.split('=', 1) for arg in sys.argv[1:]])
+    app_id = args.pop('app_id', None)
+    if not app_id:
+        raise Error("app_id is required.")
+    params = args
+    inputs = get_inputs()
+    outputs = get_outputs()
+    access_token = os.environ.get('access_token')
+    refresh_token = os.environ.get('refresh_token')
+    submit_job(app_id, inputs, params, outputs, access_token, refresh_token)
 
 if __name__ == '__main__':
     main()
