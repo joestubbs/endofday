@@ -11,9 +11,8 @@ RUN apk add --update musl py-pip && rm /var/cache/apk/*
 RUN apk add --update bash && rm -f /var/cache/apk/*
 RUN apk add --update git && rm -f /var/cache/apk/*
 
-ADD requirements.txt /requirements.txt
-RUN pip install -r /requirements.txt
+ADD core /core
+ADD agave/eod_job_submit /eod_job_submit
+RUN pip install -r /eod_job_submit/requirements.txt
 
-ADD submit.py /submit.py
-
-CMD ["python", "/submit.py"]
+CMD ["python", "/eod_job_submit/submit.py"]

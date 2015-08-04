@@ -22,36 +22,45 @@
 
 
 from __future__ import print_function
-import glob
 import os
 import sys
 
 import jinja2
 
+from agavepy.agave import Agave
 from core.template import ConfigGen
 from core.error import Error
+from core.executors import AgaveAsyncResponse
+
 
 HERE = os.path.dirname(os.path.abspath((__file__)))
 
 JOB_TEMPLATE = '/job.j2'
 
-CLIENT_KEY = ''
+API_KEY = ''
 
-CLIENT_SECRET = ''
+API_SECRET = ''
+
+API_SERVER = ''
+
+VERIFY = False
 
 def get_inputs():
-    """ Returns a dictionary of the form { <input_id>:[<uri_1>, ...,<uri_n>] }. """
+    """Returns a list of dictionaries of the form
+    [ { 'id': <input_id>, 'uris': [<uri_1>, ...,<uri_n>] }]. """
     # immediate subdirectories are the input ids
     input_ids = [y for y in os.listdir('/agave/inputs') if os.path.isdir(y)]
-    inputs = {}
+    inputs = []
     for input_id in input_ids:
         uris = []
         for name in os.listdir(os.path.join('/agave/inputs/',input_id)):
             with open(os.path.join('/agave/inputs/',input_id, name), 'r') as f:
                 uri = f.readline()
                 if '://' in uri:
-                    uris.append(uri)
-        inputs[input_id] = uris
+                    uris.append('"' + uri + '",')
+        # remove trailing comma from last entry:
+        uris[-1] = uris[-1][:-1]
+        inputs.append({'id': input_id, 'uris': uris})
     return inputs
 
 def get_outputs():
@@ -65,12 +74,20 @@ def get_outputs():
         outputs.append(job_path_or_id)
     return outputs
 
-def submit_job(app_id, inputs, params, outputs,access_token, refresh_token):
-    context = {'app_id': app_id}
+def submit_job(app_id, inputs, params, outputs, system_id,
+               access_token, refresh_token):
+    context = {'app_id': app_id, 'system_id': system_id}
 
     conf = ConfigGen(JOB_TEMPLATE)
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
     job = conf.compile(context, env)
+    ag = Agave(api_server=API_SERVER,
+               api_key=API_KEY,
+               api_secret=API_SECRET,
+               token=access_token,
+               refresh_token=refresh_token)
+    rsp = ag.jobs.submit(body=job)
+    return AgaveAsyncResponse(ag, rsp)
 
 
 def main():
@@ -83,7 +100,10 @@ def main():
     outputs = get_outputs()
     access_token = os.environ.get('access_token')
     refresh_token = os.environ.get('refresh_token')
-    submit_job(app_id, inputs, params, outputs, access_token, refresh_token)
+    system_id = os.environ.get('system_id')
+    rsp = submit_job(app_id, inputs, params, outputs, system_id,
+                     access_token, refresh_token)
+
 
 if __name__ == '__main__':
     main()
