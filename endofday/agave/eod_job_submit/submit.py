@@ -41,7 +41,7 @@ API_KEY = ''
 
 API_SECRET = ''
 
-API_SERVER = ''
+API_SERVER = 'https://api.tacc.utexas.edu'
 
 VERIFY = False
 
@@ -76,7 +76,11 @@ def get_outputs():
 
 def submit_job(app_id, inputs, params, outputs, system_id,
                access_token, refresh_token):
-    context = {'app_id': app_id, 'system_id': system_id}
+    context = {'app_id': app_id,
+               'system_id': system_id,
+               'inputs': inputs,
+               'params': params,
+               }
 
     conf = ConfigGen(JOB_TEMPLATE)
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
@@ -87,8 +91,25 @@ def submit_job(app_id, inputs, params, outputs, system_id,
                token=access_token,
                refresh_token=refresh_token)
     rsp = ag.jobs.submit(body=job)
-    return AgaveAsyncResponse(ag, rsp)
+    job_id = rsp.get('id')
+    return AgaveAsyncResponse(ag, rsp), job_id
 
+def to_uri(output, job_id):
+    """Convert an output of a job to an agave URI."""
+    # todo - for the first release, we only support relative paths in the job's work dir
+    # to the output. In the future, we can support an output_id which we can convert to a path
+    # using the app's description
+    return '{}/{}/{}'.format(API_SERVER, job_id, output)
+
+def write_outputs(outputs, job_id):
+    """Create files representing outputs of the job with the URIs as contents."""
+    for output in outputs:
+        path = os.path.join('/agave/outputs/', output)
+        base_dir = os.path.dirname(path)
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+        with open(path, 'w') as f:
+            print(to_uri(output, job_id), file=f)
 
 def main():
     args = dict([arg.split('=', 1) for arg in sys.argv[1:]])
@@ -101,9 +122,14 @@ def main():
     access_token = os.environ.get('access_token')
     refresh_token = os.environ.get('refresh_token')
     system_id = os.environ.get('system_id')
-    rsp = submit_job(app_id, inputs, params, outputs, system_id,
+    rsp, job_id = submit_job(app_id, inputs, params, outputs, system_id,
                      access_token, refresh_token)
-
+    # block until job completes
+    result = rsp.result()
+    if not result == 'COMPLETE':
+        raise Error("Job for app_id: " + app_id + " failed to complete. Job status: " + result + ". URL: " + rsp.url)
+    print("Job completed.")
+    write_outputs(outputs, job_id)
 
 if __name__ == '__main__':
     main()
