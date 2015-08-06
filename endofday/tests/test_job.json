@@ -2,10 +2,11 @@
   "name": "eod-test_wf-add_5",
   "appId": "endofday-local-0.0.1",
   "inputs": {
-    "wf": ["agave://endofday.local.storage.com//jstubbs/test_suite_wf/add_5/add_5.yml"],
-    "glob_in": ["agave://endofday.local.storage.com//jstubbs/test_suite_wf/global_inputs/input.txt"]
+    "wf": ["agave://endofday.local.storage.com//home/jstubbs/algebra.yml"],
+    "glob_in": ["agave://endofday.local.storage.com//home/jstubbs/input.txt"]
   },
   "archive": true,
+  "archiveSystem": "endofday.local.storage.com",
   "notifications": [
     {
       "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
