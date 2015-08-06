@@ -318,6 +318,9 @@ class BaseDockerTask(object):
         # outputs description
         self.outputs_desc = desc.get('outputs') or []
 
+        # whether to run locally or in the Agave cloud
+        self.execution = desc.get('execution') or 'local'
+
         # Input objects list
         self.inputs = []
 
@@ -478,9 +481,6 @@ class SimpleDockerTask(BaseDockerTask):
         # command to run within the docker container
         self.command = desc.get('command')
 
-        # whether to run locally or in the Agave cloud
-        self.execution = desc.get('execution') or 'local'
-
         self.audit()
 
         if self.execution == 'agave':
@@ -560,6 +560,8 @@ class AgaveAppTask(BaseDockerTask):
 
         # create the AgaveAppTaskOutput objects
         for out in self.parse_in_out_desc(self.outputs_desc, 'output'):
+            if out[0].startswith('/'):
+                raise Error('Agave app output sources must be relative paths.')
             app_out = AgaveAppTaskOutput(src=out[0], label=out[1], wf_name=wf_name, task_name=self.name)
             self.app_outputs.append(app_out)
             self.outputs.append(app_out.task_output)
@@ -605,7 +607,8 @@ class AgaveAppTask(BaseDockerTask):
     def pre_action(self):
         """ Get a current access token right before executing"""
         self.envs = {'access_token': self.ag.token_info['access_token'],
-                     'refresh_token': self.ag.token_info['refresh_token']}
+                     'refresh_token': self.ag.token_info['refresh_token'],
+                     'system_id': self.ag.storage_system}
 
 class TaskFile(object):
     """
@@ -664,19 +667,29 @@ class TaskFile(object):
         """
         # first, create the tasks from their descriptions
         for name, src in self.proc_dict.items():
+            create_ae = False
             task_type = src.get('execution', 'docker')
             # supported execution types are: 'docker', 'agave', and 'agave_app'
             if task_type == 'agave_app':
+                create_ae = True
                 task = AgaveAppTask(name, src, self.name)
             else:
                 task = SimpleDockerTask(name, src, self.name)
             self.tasks.append(task)
+        if create_ae:
+            self.ae = AgaveExecutor(wf_name=self.name)
+        else:
+            self.ae = None
         # once all tasks are created, we can add the output volumes to each task
         # and then set the action
         for task in self.tasks:
             task.set_output_volume_mounts()
             task.set_input_volumes(self.global_inputs, self.tasks)
-            task.set_action()
+            if task.execution == 'agave_app':
+                task.ae = self.ae
+                task.set_action(self.ae)
+            else:
+                task.set_action()
             task.set_doit_dict()
 
 
