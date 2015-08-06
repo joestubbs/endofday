@@ -65,13 +65,16 @@ class AgaveAsyncResponse(object):
         # job ended in 'failed' status
         elif len([x for x in result if 'FAILED' in x['status']]) > 0:
             self.status = 'FAILED'
+        # job ended in 'failed' status
+        elif len([x for x in result if 'STAGING_FAILED' in x['status']]) > 0:
+            self.status = 'FAILED'
         else:
             # sort on creation time of the history object
             result = sorted(result, key=lambda k: k['created'])
             self.status = result[0].get('status')
 
     def _is_done(self):
-        return self.status == 'COMPLETE' or self.status == 'STAGING_FAILED'
+        return self.status == 'COMPLETE' or self.status == 'FAILED'
 
     def done(self):
         """Return True if the call was successfully cancelled or finished running."""
