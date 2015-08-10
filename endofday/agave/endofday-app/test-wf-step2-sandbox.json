@@ -1,0 +1,111 @@
+{
+  "name": "eod-agaveapps-step2",
+  "version": "0.0.1",
+  "available": true,
+  "parallelism": "SERIAL",
+  "helpURI": "https://github.com/joestubbs/endofday",
+  "label": "endofday-local",
+  "shortDescription": "Test app that is step 2 in a test workflow.",
+  "longDescription": "",
+  "author": "Joe Stubbs",
+  "datePublished": "",
+  "publiclyAvailable": "false",
+  "tags": [
+    "containers",
+    "docker",
+    "workflow"
+  ],
+  "executionSystem": "endofday.local.execute.com",
+  "executionType": "CLI",
+  "defaultQueue": "debug",
+  "defaultNodes": 1,
+  "defaultProcessorsPerNode": 1,
+  "defaultMemoryPerNode": "2GB",
+  "defaultMaxRunTime": "01:00:00",
+  "deploymentSystem": "endofday.local.storage.com",
+  "deploymentPath": "/home/jstubbs/test_wf_step2/",
+  "templatePath": "wrapper.sh",
+  "testPath": "tests/test.sh",
+  "checkpointable": true,
+  "inputs": [
+    {
+      "id": "first_inp",
+      "value": {
+        "validator": "",
+        "required": true,
+        "default": "",
+        "order": 0,
+        "visible": true,
+        "enquote": false
+      },
+      "details": {
+        "label": "Required input to step 2.",
+        "description": "",
+        "repeatArgument": false,
+        "showArgument": false
+      },
+      "semantics": {
+        "ontology": [
+          "http://sswapmeet.sswap.info/util/TextDocument"
+        ],
+        "minCardinality": 1,
+        "maxCardinality": 1,
+        "fileTypes": [
+          "text-0"
+        ]
+      }
+    },
+    {
+      "id": "other_inp",
+      "value": {
+        "validator": "",
+        "required": false,
+        "default": "",
+        "order": 1,
+        "visible": true,
+        "enquote": false
+      },
+      "details": {
+        "label": "An optional input file to step 2.",
+        "description": "",
+        "repeatArgument": false,
+        "showArgument": false
+      },
+      "semantics": {
+        "ontology": [
+          "http://sswapmeet.sswap.info/util/TextDocument"
+        ],
+        "minCardinality": 0,
+        "maxCardinality": -1,
+        "fileTypes": [
+          "text-0"
+        ]
+      }
+    }
+  ],
+  "parameters" : [ {
+      "id" : "sleep",
+      "value" : {
+        "visible" : true,
+        "required" : false,
+        "type" : "number",
+        "order" : 0,
+        "enquote" : false,
+        "default" : 5
+      },
+      "details" : {
+        "label" : "Sleep amount",
+        "description" : "Amount of time for program to sleep",
+        "argument" : "",
+        "showArgument" : false,
+        "repeatArgument" : false
+      },
+      "semantics" : {
+        "minCardinality" : 0,
+        "maxCardinality" : 1,
+        "ontology" : [ "sleep" ]
+      }
+    }],
+  "outputs": [
+  ]
+}

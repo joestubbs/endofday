@@ -1,0 +1,36 @@
+
+name: test_suite_agave_app_wf
+
+inputs:
+    - input <- agave://endofday.local.storage.com//home/jstubbs/input.txt
+    - input_2 <- agave://endofday.local.storage.com//home/jstubbs/hellotxt
+
+outputs:
+    - sum.output
+
+processes:
+    step_1:
+        app_id: eod-agaveapps-step1-0.0.1
+        execution: agave_app
+        description: Step 1
+        inputs:
+            step_1_inp:
+                - inputs.input
+        parameters:
+            sleep: 5
+        outputs:
+            - output1.txt -> some_output
+
+    step_2:
+        app_id: eod-agaveapps-step2-0.0.1
+        execution: agave_app
+        inputs:
+            first_inp:
+                - step_1.some_output
+            other_inp:
+                - inputs.input
+                - inputs.input_2
+        outputs:
+            - first_out.txt -> just_some_label
+
+
