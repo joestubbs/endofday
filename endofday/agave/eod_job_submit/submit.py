@@ -25,6 +25,8 @@ from __future__ import print_function
 import os
 import sys
 
+sys.path.append('/')
+
 import jinja2
 
 from agavepy.agave import Agave
@@ -37,7 +39,7 @@ HERE = os.path.dirname(os.path.abspath((__file__)))
 
 JOB_TEMPLATE = '/job.j2'
 
-API_KEY = ''
+API_KEY = 'vzWgzlRbJnuk1MwbgqsXSGflINAa'
 
 API_SECRET = ''
 
@@ -90,8 +92,10 @@ def submit_job(app_id, inputs, params, outputs, system_id,
                api_secret=API_SECRET,
                token=access_token,
                refresh_token=refresh_token)
+    print("Submitting job...")
     rsp = ag.jobs.submit(body=job)
     job_id = rsp.get('id')
+    print("Job submitted. job_id:{}".format(job_id))
     return AgaveAsyncResponse(ag, rsp), job_id
 
 def to_uri(output, job_id):
@@ -116,12 +120,22 @@ def main():
     app_id = args.pop('app_id', None)
     if not app_id:
         raise Error("app_id is required.")
+    print("eod_job_sumbit executing for app: {}".format(app_id))
     params = args
     inputs = get_inputs()
+    print("Inputs:{}".format(inputs))
     outputs = get_outputs()
+    print("Ouputs:{}".format(outputs))
     access_token = os.environ.get('access_token')
     refresh_token = os.environ.get('refresh_token')
+    if not access_token:
+        raise Error("access_token required.")
+    if not refresh_token:
+        raise Error("refresh_token required.")
     system_id = os.environ.get('system_id')
+    if not system_id:
+        raise Error("system_id is required.")
+    print("eod_job_sumbit executing for system: {}".format(system_id))
     rsp, job_id = submit_job(app_id, inputs, params, outputs, system_id,
                      access_token, refresh_token)
     # block until job completes
@@ -130,6 +144,8 @@ def main():
         raise Error("Job for app_id: " + app_id + " failed to complete. Job status: " + result + ". URL: " + rsp.url)
     print("Job completed.")
     write_outputs(outputs, job_id)
+    print("Outputs written:{}".format(outputs))
+
 
 if __name__ == '__main__':
     main()

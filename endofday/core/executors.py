@@ -137,7 +137,7 @@ class AgaveExecutor(object):
         self.home_dir = home_dir
         # default the home directory to the username
         if not self.home_dir:
-            self.home_dir = username
+            self.home_dir = '/home/' + username
         # get the home dir for the system itself:
         rsp = self.ag.systems.get(systemId=storage_system)
         self.system_homedir = rsp.get('storage').get('homeDir')

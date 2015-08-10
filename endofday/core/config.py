@@ -23,7 +23,6 @@ class AgaveConfigParser(ConfigParser.ConfigParser):
 
 def read_config():
     parser = AgaveConfigParser()
-    print "contents of staging dir:", str(os.listdir('/staging'))
     places = ['/endofday.conf',
               os.path.expanduser('/etc/endofday.conf'),
               os.path.abspath(os.path.join(HERE, '../endofday.conf')),

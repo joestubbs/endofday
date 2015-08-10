@@ -17,7 +17,7 @@ from doit.doit_cmd import DoitMain
 
 from .config import Config
 from .error import Error
-from .executors import AgaveAsyncResponse, AgaveExecutor
+from .executors import AgaveAsyncResponse, AgaveExecutor, AgaveAppExecutor
 from .hosts import update_hosts
 
 
@@ -396,7 +396,7 @@ class BaseDockerTask(object):
             for k,v in envs.items():
                 docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
         # add the image:
-        docker_cmd += self.image + ' '
+        docker_cmd += ' ' + self.image + ' '
         # add the command:
         docker_cmd += self.command
         return docker_cmd, output_str, input_str
@@ -408,6 +408,7 @@ class BaseDockerTask(object):
         self.pre_action()
         docker_cmd, _, _ = self.get_docker_command(envs=getattr(self, 'envs', None))
         # now, execute the container
+        print("Executing docker command:{}".format(docker_cmd))
         proc = subprocess.Popen(docker_cmd, shell=True)
         proc.wait()
         self.post_action()
@@ -570,10 +571,6 @@ class AgaveAppTask(BaseDockerTask):
         # in the container) by the eod_job_submit container.
         self.add_out_labels_input()
 
-        # each task has an AgaveExecutor object that is capable of generating an access and refresh token
-        # right before it submits ths job.
-        self.ag = AgaveExecutor(wf_name=wf_name, create_home_dir=False)
-
     def audit(self):
         """Run basic audits on a constructed task. Work in progress."""
         if not self.name:
@@ -585,7 +582,7 @@ class AgaveAppTask(BaseDockerTask):
 
     def get_container_command(self):
         """Returns the command to run inside the eod_job_submit container."""
-        cmd = 'python submit.py /agave/output_labels '
+        cmd = 'python /eod_job_submit/submit.py '
         cmd += 'app_id={} '.format(self.app_id)
         for k, v in self.params_desc.items():
             cmd += '{}={} '.format(k, v)
@@ -600,15 +597,16 @@ class AgaveAppTask(BaseDockerTask):
         self.inputs.append(inp)
         if not os.path.exists(base_dir):
             os.makedirs(base_dir)
+        print("Creating output_labels file at:{}".format(host_path))
         with open(host_path, 'w') as f:
             for out in self.app_outputs:
                 print(out.task_output.src, file=f)
 
     def pre_action(self):
         """ Get a current access token right before executing"""
-        self.envs = {'access_token': self.ag.token_info['access_token'],
-                     'refresh_token': self.ag.token_info['refresh_token'],
-                     'system_id': self.ag.storage_system}
+        self.envs = {'access_token': self.ae.ag.token.token_info['access_token'],
+                     'refresh_token': self.ae.ag.token.token_info['refresh_token'],
+                     'system_id': self.ae.ag.storage_system}
 
 class TaskFile(object):
     """
@@ -677,7 +675,7 @@ class TaskFile(object):
                 task = SimpleDockerTask(name, src, self.name)
             self.tasks.append(task)
         if create_ae:
-            self.ae = AgaveExecutor(wf_name=self.name)
+            self.ae = AgaveAppExecutor(wf_name=self.name, create_home_dir=False)
         else:
             self.ae = None
         # once all tasks are created, we can add the output volumes to each task
