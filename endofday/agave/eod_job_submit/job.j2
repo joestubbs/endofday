@@ -4,7 +4,7 @@
   {% if inputs %}
   "inputs": {
       {% for inp in inputs %}
-        "{{ inp.id }}": [{% for uri_str in inp.uris %}{{ uri_str }}{% endfor %}]
+        "{{ inp.id }}": [{% for uri_str in inp.uris %}{{ uri_str }}{% endfor %}]{% if not loop.last %},{% endif %}
       {% endfor %}
   },
   {% endif %}
@@ -12,7 +12,7 @@
   {% if parameters %}
   "parameters": {
       {% for parm in parameters %}
-        "{{ parm.id }}": {{ parm.value }}
+        "{{ parm.id }}": {{ parm.value }}{% if not loop.last %},{% endif %}
       {% endfor %}
   },
   {% endif %}

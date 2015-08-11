@@ -51,13 +51,13 @@ def get_inputs():
     """Returns a list of dictionaries of the form
     [ { 'id': <input_id>, 'uris': [<uri_1>, ...,<uri_n>] }]. """
     # immediate subdirectories are the input ids
-    input_ids = [y for y in os.listdir('/agave/inputs') if os.path.isdir(y)]
+    input_ids = [y for y in os.listdir('/agave/inputs') if os.path.isdir(os.path.join('/agave/inputs', y))]
     inputs = []
     for input_id in input_ids:
         uris = []
         for name in os.listdir(os.path.join('/agave/inputs/',input_id)):
             with open(os.path.join('/agave/inputs/',input_id, name), 'r') as f:
-                uri = f.readline()
+                uri = f.readline().strip('\n')
                 if '://' in uri:
                     uris.append('"' + uri + '",')
         # remove trailing comma from last entry:
@@ -72,7 +72,7 @@ def get_outputs():
     """
     outputs = []
     with open('/agave/outputs/output_labels', 'r') as f:
-        job_path_or_id = f.readline()
+        job_path_or_id = f.readline().strip('\n')
         outputs.append(job_path_or_id)
     return outputs
 
@@ -92,7 +92,7 @@ def submit_job(app_id, inputs, params, outputs, system_id,
                api_secret=API_SECRET,
                token=access_token,
                refresh_token=refresh_token)
-    print("Submitting job...")
+    print("Submitting job: {}".format(job))
     rsp = ag.jobs.submit(body=job)
     job_id = rsp.get('id')
     print("Job submitted. job_id:{}".format(job_id))
@@ -103,7 +103,7 @@ def to_uri(output, job_id):
     # todo - for the first release, we only support relative paths in the job's work dir
     # to the output. In the future, we can support an output_id which we can convert to a path
     # using the app's description
-    return '{}/{}/{}'.format(API_SERVER, job_id, output)
+    return '{}/jobs/v2/{}/output/listings/{}'.format(API_SERVER, job_id, output)
 
 def write_outputs(outputs, job_id):
     """Create files representing outputs of the job with the URIs as contents."""
@@ -111,8 +111,10 @@ def write_outputs(outputs, job_id):
         path = os.path.join('/agave/outputs/', output)
         base_dir = os.path.dirname(path)
         if not os.path.exists(base_dir):
+            print("Creating base dir for output: {}".format(base_dir))
             os.makedirs(base_dir)
         with open(path, 'w') as f:
+            print("Writing output file to path: {}".format(path))
             print(to_uri(output, job_id), file=f)
 
 def main():
