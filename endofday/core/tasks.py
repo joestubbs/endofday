@@ -87,7 +87,7 @@ class GlobalInput(object):
         # create a file with the URI
         base_dir = os.path.dirname(self.eod_container_path)
         if not os.path.exists(base_dir):
-            print("Creating base_dir:{}".format(base_dir))
+            print("Creating global input base_dir:{}".format(base_dir))
             os.makedirs(base_dir)
         if self.is_uri:
             with open(self.eod_container_path, 'w') as f:
@@ -336,7 +336,7 @@ class BaseDockerTask(object):
 
         # Create the base path if it doesn't exist
         if not os.path.exists(self.eod_base_path):
-            print("Creating base_dir:{}".format(self.eod_base_path))
+            print("Creating task base_dir:{}".format(self.eod_base_path))
             os.makedirs(self.eod_base_path)
 
     def parse_in_out_desc(self, desc, kind):
@@ -597,8 +597,8 @@ class AgaveAppTask(BaseDockerTask):
         container_path = os.path.join(AGAVE_OUTPUTS_DIR, 'output_labels')
         inp = AddedInput(host_path=host_path, container_path=container_path)
         self.inputs.append(inp)
-        if not os.path.exists(base_dir):
-            print("Creating base_dir:{}".format(base_dir))
+        if not os.path.exists(to_eod(base_dir)):
+            print("Creating output_label input base_dir:{}".format(base_dir))
             os.makedirs(to_eod(base_dir))
         print("Creating output_labels file at:{} <-> {}".format(host_path, to_eod(host_path)))
         with open(to_eod(host_path), 'w') as f:
