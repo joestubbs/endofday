@@ -103,7 +103,7 @@ def to_uri(output, job_id):
     # todo - for the first release, we only support relative paths in the job's work dir
     # to the output. In the future, we can support an output_id which we can convert to a path
     # using the app's description
-    return '{}/jobs/v2/{}/output/listings/{}'.format(API_SERVER, job_id, output)
+    return '{}/jobs/v2/{}/outputs/media/{}'.format(API_SERVER, job_id, output)
 
 def write_outputs(outputs, job_id):
     """Create files representing outputs of the job with the URIs as contents."""
