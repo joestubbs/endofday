@@ -2,8 +2,8 @@
 name: test_suite_agave_app_wf
 
 inputs:
-    - input <- agave://endofday.local.storage.com//home/jstubbs/input.txt
-    - input_2 <- agave://endofday.local.storage.com//home/jstubbs/hello.txt
+    - input <- agave://endofday.staging.storage//home/eod/testdata/input.txt
+    - input_2 <- agave://endofday.staging.storage//home/eod/testdata/hello.txt
 
 outputs:
     - sum.output
