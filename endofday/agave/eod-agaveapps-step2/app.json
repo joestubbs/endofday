@@ -1,0 +1,123 @@
+{
+    "author": "Joe Stubbs",
+    "name": "eod-agaveapps-step2",
+    "version": "0.0.1",
+    "id": "eod-agaveapps-step2-0.0.1",
+    "templatePath": "wrapper.sh",
+    "testPath": "tests/test.sh",
+    "parallelism": "SERIAL",
+    "available": true,
+    "checkpointable": true,
+    "defaultMaxRunTime": "01:00:00",
+    "defaultMemoryPerNode": 2,
+    "defaultNodeCount": 1,
+    "defaultProcessorsPerNode": 1,
+    "defaultQueue": "debug",
+    "deploymentPath": "/home/eod/eod-agaveapps-step2-0.0.1",
+    "deploymentSystem": "endofday.staging.storage",
+    "executionSystem": "endofday.staging.execute",
+    "executionType": "CLI",
+    "helpURI": "https://github.com/joestubbs/endofday",
+    "inputs": [
+        {
+            "details": {
+                "argument": null,
+                "description": "",
+                "label": "Required input to step 2.",
+                "repeatArgument": false,
+                "showArgument": false
+            },
+            "id": "first_inp",
+            "semantics": {
+                "fileTypes": [
+                    "text-0"
+                ],
+                "maxCardinality": 1,
+                "minCardinality": 1,
+                "ontology": [
+                    "http://sswapmeet.sswap.info/util/TextDocument"
+                ]
+            },
+            "value": {
+                "default": "",
+                "enquote": false,
+                "order": 0,
+                "required": true,
+                "validator": "",
+                "visible": true
+            }
+        },
+        {
+            "details": {
+                "argument": null,
+                "description": "",
+                "label": "An optional input file to step 2.",
+                "repeatArgument": false,
+                "showArgument": false
+            },
+            "id": "other_inp",
+            "semantics": {
+                "fileTypes": [
+                    "text-0"
+                ],
+                "maxCardinality": -1,
+                "minCardinality": 0,
+                "ontology": [
+                    "http://sswapmeet.sswap.info/util/TextDocument"
+                ]
+            },
+            "value": {
+                "default": [
+                    ""
+                ],
+                "enquote": false,
+                "order": 1,
+                "required": false,
+                "validator": "",
+                "visible": true
+            }
+        }
+    ],
+    "isPublic": false,
+    "label": "endofday-local",
+    "lastModified": "2015-08-08T15:52:12.000-05:00",
+    "longDescription": "",
+    "modules": [],
+    "ontology": [],
+    "outputs": [],
+    "parameters": [
+        {
+            "details": {
+                "argument": "",
+                "description": "Amount of time for program to sleep",
+                "label": "Sleep amount",
+                "repeatArgument": false,
+                "showArgument": false
+            },
+            "id": "sleep",
+            "semantics": {
+                "maxCardinality": 1,
+                "minCardinality": 0,
+                "ontology": [
+                    "sleep"
+                ]
+            },
+            "value": {
+                "default": 5,
+                "enquote": false,
+                "order": 0,
+                "required": false,
+                "type": "number",
+                "validator": null,
+                "visible": true
+            }
+        }
+    ],
+    "revision": 1,
+    "shortDescription": "Test app that is step 2 in a test workflow.",
+    "tags": [
+        "containers",
+        "docker",
+        "workflow"
+    ]
+}
