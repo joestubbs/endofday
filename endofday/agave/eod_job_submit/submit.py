@@ -39,12 +39,6 @@ HERE = os.path.dirname(os.path.abspath((__file__)))
 
 JOB_TEMPLATE = '/job.j2'
 
-API_KEY = 'vzWgzlRbJnuk1MwbgqsXSGflINAa'
-
-API_SECRET = ''
-
-API_SERVER = 'https://api.tacc.utexas.edu'
-
 VERIFY = False
 
 def get_inputs():
@@ -77,7 +71,7 @@ def get_outputs():
     return outputs
 
 def submit_job(app_id, inputs, params, outputs, system_id,
-               access_token, refresh_token):
+               access_token, refresh_token, api_server, api_key, api_secret, verify):
     context = {'app_id': app_id,
                'system_id': system_id,
                'inputs': inputs,
@@ -87,25 +81,30 @@ def submit_job(app_id, inputs, params, outputs, system_id,
     conf = ConfigGen(JOB_TEMPLATE)
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
     job = conf.compile(context, env)
-    ag = Agave(api_server=API_SERVER,
-               api_key=API_KEY,
-               api_secret=API_SECRET,
+
+    ag = Agave(api_server=api_server,
+               api_key=api_key,
+               api_secret=api_secret,
                token=access_token,
-               refresh_token=refresh_token)
+               refresh_token=refresh_token,
+               verify=verify)
     print("Submitting job: {}".format(job))
-    rsp = ag.jobs.submit(body=job)
+    try:
+        rsp = ag.jobs.submit(body=job)
+    except Exception as e:
+        raise Error("Got an exception trying to submit the job: {}".format(e))
     job_id = rsp.get('id')
     print("Job submitted. job_id:{}".format(job_id))
     return AgaveAsyncResponse(ag, rsp), job_id
 
-def to_uri(output, job_id):
+def to_uri(output, job_id, api_server):
     """Convert an output of a job to an agave URI."""
     # todo - for the first release, we only support relative paths in the job's work dir
     # to the output. In the future, we can support an output_id which we can convert to a path
     # using the app's description
-    return '{}/jobs/v2/{}/outputs/media/{}'.format(API_SERVER, job_id, output)
+    return '{}/jobs/v2/{}/outputs/media/{}'.format(api_server, job_id, output)
 
-def write_outputs(outputs, job_id):
+def write_outputs(outputs, job_id, api_server):
     """Create files representing outputs of the job with the URIs as contents."""
     for output in outputs:
         path = os.path.join('/agave/outputs/', output)
@@ -115,7 +114,7 @@ def write_outputs(outputs, job_id):
             os.makedirs(base_dir)
         with open(path, 'w') as f:
             print("Writing output file to path: {}".format(path))
-            print(to_uri(output, job_id), file=f)
+            print(to_uri(output, job_id, api_server), file=f)
 
 def main():
     args = dict([arg.split('=', 1) for arg in sys.argv[1:]])
@@ -124,28 +123,56 @@ def main():
         raise Error("app_id is required.")
     print("eod_job_sumbit executing for app: {}".format(app_id))
     params = args
+
     inputs = get_inputs()
     print("Inputs:{}".format(inputs))
+
     outputs = get_outputs()
     print("Ouputs:{}".format(outputs))
+
     access_token = os.environ.get('access_token')
     refresh_token = os.environ.get('refresh_token')
     if not access_token:
         raise Error("access_token required.")
     if not refresh_token:
         raise Error("refresh_token required.")
+    print("using access_token: {}".format(access_token))
+    print("using refresh_token: {}".format(refresh_token))
+
+    api_server = os.environ.get('api_server')
+    if not api_server:
+        raise Error("api_server required.")
+    print("using api_server: {}".format(api_server))
+
+    verify = os.environ.get('verify')
+    if verify == 'False':
+        verify = False
+    else:
+        verify = True
+    print("using verify: {}".format(verify))
+
+    api_key = os.environ.get('api_key')
+    if not api_key:
+        raise Error("api_key required.")
+    print("using api_key: {}".format(api_key))
+
+    api_secret = os.environ.get('api_secret')
+    if not api_secret:
+        raise Error("api_secret required.")
+    print("using api_secret: {}".format(api_secret))
+
     system_id = os.environ.get('system_id')
     if not system_id:
         raise Error("system_id is required.")
-    print("eod_job_sumbit executing for system: {}".format(system_id))
+    print("eod_job_submit executing for system: {}".format(system_id))
     rsp, job_id = submit_job(app_id, inputs, params, outputs, system_id,
-                     access_token, refresh_token)
+                     access_token, refresh_token, api_server, api_key, api_secret, verify)
     # block until job completes
     result = rsp.result()
     if not result == 'COMPLETE':
         raise Error("Job for app_id: " + app_id + " failed to complete. Job status: " + result + ". URL: " + rsp.url)
     print("Job completed.")
-    write_outputs(outputs, job_id)
+    write_outputs(outputs, job_id, api_server)
     print("Outputs written:{}".format(outputs))
 
 

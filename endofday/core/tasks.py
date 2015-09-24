@@ -610,7 +610,11 @@ class AgaveAppTask(BaseDockerTask):
         """ Get a current access token right before executing"""
         self.envs = {'access_token': self.ae.ag.token.token_info['access_token'],
                      'refresh_token': self.ae.ag.token.token_info['refresh_token'],
-                     'system_id': self.ae.storage_system}
+                     'system_id': self.ae.storage_system,
+                     'api_server': self.ae.ag.api_server,
+                     'api_key': self.ae.ag.api_key,
+                     'api_secret': self.ae.ag.api_secret,
+                     'verify': self.ae.ag.verify}
 
 class TaskFile(object):
     """
