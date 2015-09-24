@@ -6,7 +6,7 @@
    "description":"Storage system for endofday runs in the staging environment.",
    "site":"agaveapi.co",
    "storage":{
-      "host":"54.173.97.39",
+      "host":"52.21.60.210",
       "port":22,
       "protocol":"SFTP",
       "rootDir":"/",
