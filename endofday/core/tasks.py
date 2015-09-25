@@ -586,6 +586,7 @@ class AgaveAppTask(BaseDockerTask):
         """Returns the command to run inside the eod_job_submit container."""
         cmd = 'python /eod_job_submit/submit.py '
         cmd += 'app_id={} '.format(self.app_id)
+        print("Params: {}".format(self.params_desc))
         for k, v in self.params_desc.items():
             cmd += '{}={} '.format(k, v)
         return cmd

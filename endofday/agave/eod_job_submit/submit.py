@@ -72,12 +72,16 @@ def get_outputs():
 
 def submit_job(app_id, inputs, params, outputs, system_id,
                access_token, refresh_token, api_server, api_key, api_secret, verify):
+    parameters = []
+    for k,v in params.items():
+        parm = {'id':k, 'value': v}
+        parameters.append(parm)
+    print("parameters: {}".format(parameters))
     context = {'app_id': app_id,
                'system_id': system_id,
                'inputs': inputs,
-               'params': params,
+               'parameters': parameters,
                }
-
     conf = ConfigGen(JOB_TEMPLATE)
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
     job = conf.compile(context, env)
@@ -121,8 +125,9 @@ def main():
     app_id = args.pop('app_id', None)
     if not app_id:
         raise Error("app_id is required.")
-    print("eod_job_sumbit executing for app: {}".format(app_id))
+    print("eod_job_submit executing for app: {}".format(app_id))
     params = args
+    print("Parameters:{}".format(params))
 
     inputs = get_inputs()
     print("Inputs:{}".format(inputs))
@@ -168,6 +173,7 @@ def main():
     rsp, job_id = submit_job(app_id, inputs, params, outputs, system_id,
                      access_token, refresh_token, api_server, api_key, api_secret, verify)
     # block until job completes
+    print("Async response object from submit: {}".format(rsp.response))
     result = rsp.result()
     if not result == 'COMPLETE':
         raise Error("Job for app_id: " + app_id + " failed to complete. Job status: " + result + ". URL: " + rsp.url)

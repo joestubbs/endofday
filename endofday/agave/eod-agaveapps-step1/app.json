@@ -7,7 +7,7 @@
     "parallelism": "SERIAL",
     "available": true,
     "checkpointable": true,
-    "defaultMaxRunTime": "01:00:00",
+    "defaultMaxRunTime": "10:00:00",
     "defaultMemoryPerNode": 2,
     "defaultNodeCount": 1,
     "defaultProcessorsPerNode": 1,

@@ -6,6 +6,8 @@ import requests
 import time
 import urlparse
 
+# requests.packages.urllib3.disable_warnings()
+
 from agavepy.agave import Agave, AgaveException
 import jinja2
 
@@ -39,10 +41,12 @@ class AgaveAsyncResponse(object):
         self.url = self.url.replace('/2.0/','/v2/')
         # url's also sometimes have the wrong domain; always use the api_server from the config.
         self.url_domain =  urlparse.urlparse(self.url).netloc
-        api_server_domain = urlparse.urlparse(Config.get('agave', 'api_server')).netloc
+        # api_server_domain is NOT correct when this is called from eod_job_submit because
+        # the current session's config file is not present in that container.
+        # api_server_domain = urlparse.urlparse(Config.get('agave', 'api_server')).netloc
         # print "domain from agave:", self.url_domain
         # print "correct domain:", api_server_domain
-        self.url = self.url.replace(self.url_domain, api_server_domain)
+        # self.url = self.url.replace(self.url_domain, api_server_domain)
         # print "url after replacing:", self.url
 
     def _update_status(self):
@@ -52,6 +56,8 @@ class AgaveAsyncResponse(object):
             self.retries += 1
             return self._update_status()
         if not rsp.status_code == 200:
+            print("URL: {}".format(self.url))
+            print(self.ag.token.token_info)
             raise Error("Error updating status; invalid status code:  " + str(rsp.status_code) + str(rsp.content))
         result = rsp.json().get('result')
         if not result:
@@ -132,6 +138,7 @@ class AgaveExecutor(object):
         print "Constructing executor for: ", url
         self.ag = Agave(api_server=url, username=username, password=password,
                         client_name=client_name, api_key=client_key, api_secret=client_secret, verify=verify)
+        print("executor constructed.")
         self.storage_system = storage_system
         self.wf_name = wf_name
         self.home_dir = home_dir
