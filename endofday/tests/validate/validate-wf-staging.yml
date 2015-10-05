@@ -1,0 +1,67 @@
+name: Validate_wf
+
+inputs:
+    - ped_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.ped
+    - map_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.map
+    - bed_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.bed
+    - bim_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.bim
+    - fam_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.fam
+    - pheno_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.fam_pheno.txt
+    - known_truth <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/SynTruth06.txt
+outputs:
+    - ComparisonTable.csv
+    - TP Histograms.pdf
+    - FP Histograms.pdf
+    - True Positives vs. False Positives.pdf
+    - Plot of AUC by MAE.pdf
+processes:
+    step_1:
+        app_id: FaST-LMM-2.07
+        execution: agave_app
+        description: Step 1
+        inputs:
+            step_1_inp:
+                - inputs.ped_input
+                - inputs.map_input
+                - inputs.bed_input
+                - inputs.bim_input
+                - inputs.fam_input
+                - inputs.pheno_input
+        parameters:
+            MainFileset: "P"
+            SimFileset: "BEDBIMFAM"
+            output: "YAMLTest_LMM.txt"
+        outputs:
+            - YAMLTest_LMM.txt -> some_output
+
+    step_2:
+        app_id: Winnow-0.7
+        execution: agave_app
+        inputs:
+            first_inp:
+                - step_1.some_output
+            other_inp:
+                - inputs.known_truth
+        parameters:
+            SNP: "SNP"
+            Filename: "YAML_Winnow_Results"
+            Score: "Pvalue"
+            beta: "SNPWeight"
+            kttype: "OTE"
+            seper: "comma"
+            kttypeseper: "whitespace"
+        outputs:
+            - YAML_Winnow_Results.txt -> just_some_label
+
+    step_3:
+        app_id: Demonstrate-0.7
+        execution: agave_app
+        inputs:
+            first_inp:
+                - step_2.just_some_label
+        outputs:
+            - ComparisonTable.csv
+            - TP Histograms.pdf
+            - FP Histograms.pdf
+            - True Positives vs. False Positives
+            - Plot of AUC by MAE.pdf

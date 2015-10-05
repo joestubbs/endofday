@@ -1,0 +1,324 @@
+{
+  "name": "FaST-LMM",
+  "version": "2.07",
+  "helpURI": "https://pods.iplantcollaborative.org/wiki/display/atmman/Validate+Workflow+v0.7",
+  "defaultQueue": "normal",
+  "defaultRequestedTime": "3:00:00",
+  "shortDescription": "Whole genome association analysis toolset",
+  "longDescription": "FaST-LMM (Factored Spectrally Transformed Linear Mixed Models) is a program for performing genome-wide association studies (GWAS) on large data sets",
+  "executionSystem": "validate.staging.execute",
+  "executionType": "CLI",
+  "parallelism": "SERIAL",
+  "deploymentPath": "/home/validate/apps/fastlmm-2.07/fastlmm",
+  "deploymentSystem": "validate.staging.storage",
+  "templatePath": "fastlmm-wrapper.sh",
+  "testPath": "test-fastlmm.sh",
+  "tags": [
+    "GWAS",
+    "GWA",
+    "FaST-LMM",
+    "Genome",
+    "Association"
+  ],
+  "modules": [
+    "purge",
+    "load TACC",
+    "load irods"
+  ],
+  "inputs": [
+    {
+      "id": "inputTPED",
+      "details": {
+        "label": "Input .tped (relative to /iplant/home)",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 0,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "inputFAM",
+      "details": {
+        "label": "Input folder (relative to /iplant/home)",
+        "description": "Specify folder that contains .map/.ped files",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 1,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.fam",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "Sim",
+      "details": {
+        "label": "Genetic similarity matrix file",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 1,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.sim.txt",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "inputPED",
+      "details": {
+        "label": "Input .ped (relative to /iplant/home)",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 1,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.ped",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "inputBED",
+      "details": {
+        "label": "Input .bed (relative to /iplant/home)",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 1,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.bed",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "inputBIM",
+      "details": {
+        "label": "Input .bim (relative to /iplant/home)",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 1,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.bim",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "inputMAP",
+      "details": {
+        "label": "Input .map file (relative to /iplant/home)",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 1,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.map",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "inputTFAM",
+      "details": {
+        "label": "Input .tfam (relative to /iplant/home)",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 0,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "inputPHENO",
+      "details": {
+        "label": "Input phenotype file",
+        "description": "Specify the phenotype file corresponding to your fileset",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 1,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.phe",
+        "visible": true,
+        "required": true
+      }
+    },
+    {
+      "id": "inputCOVAR",
+      "details": {
+        "label": "Input covariate file (relative to /iplant/home)",
+        "description": "Specify optional covariate file",
+        "showAttribute": false
+      },
+      "semantics": {
+        "minCardinality": 1,
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.cov",
+        "visible": true,
+        "required": false
+      }
+    }
+  ],
+  "parameters": [
+	{
+      "id": "verboseOutput",
+      "details": {
+        "label": "Triggers verbose mode",
+        "showAttribute": false
+      },
+      "semantics": {
+        "ontology": [
+          "xs:bool"
+        ]
+      },
+      "value": {
+        "default": 0,
+        "type": "number",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "C",
+      "details": {
+        "label": "The covariate file is an input",
+        "showAttribute": false
+      },
+      "semantics": {
+        "ontology": [
+          "xs:bool"
+        ]
+      },
+      "value": {
+        "default": 0,
+        "type": "number",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "MainFileset",
+      "details": {
+        "label": "The fileset used as the main inputs",
+		"description": "The fileset used as the main inputs: P for PEDMAP, B for BEDBIMFAM, or T for TPEDTFAM",
+        "showAttribute": false
+      },
+      "semantics": {
+        "ontology": [
+          "xs:string"
+        ]
+      },
+      "value": {
+        "default": "B",
+        "type": "number",
+        "visible": true,
+        "required": false
+      }
+    },
+	{
+      "id": "SimFileset",
+      "details": {
+        "label": "Fileset for similarity matrix",
+	"description": "The PLINK file group used to calculate the genetic similarity matrix (PEDMAP, BEDBIMFAM, or TPEDTFAM)",
+        "showAttribute": false
+      },
+      "semantics": {
+        "ontology": [
+          "xs:string"
+        ]
+      },
+      "value": {
+        "default": "PEDMAP",
+        "type": "string",
+        "visible": true,
+        "required": false
+      }
+    },
+    {
+      "id": "mpheno",
+      "details": {
+        "label": "Proper column number for phenotype file",
+        "showAttribute": false
+      },
+      "semantics": {
+        "ontology": [
+          "xs:integer"
+        ]
+      },
+      "value": {
+        "default": 1,
+        "type": "number",
+        "visible": true,
+        "required": false
+      }
+    },
+	{
+      "id": "output",
+      "details": {
+        "label": "The name of the analysis output file",
+        "showAttribute": false
+      },
+      "semantics": {
+        "ontology": [
+          "http://sswapmeet.sswap.info/soybase/"
+        ]
+      },
+      "value": {
+        "default": "MyFastLmmResults",
+        "type": "string",
+        "visible": true,
+        "required": true
+      }
+    }
+  ],
+  "checkpointable": false
+}

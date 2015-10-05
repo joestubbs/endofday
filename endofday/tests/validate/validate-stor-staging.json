@@ -1,0 +1,21 @@
+{
+   "id": "validate.staging.storage",
+   "name": "validate staging storage system",
+   "status":"UP",
+   "type":"STORAGE",
+   "description":"Storage system for validate runs in the staging environment.",
+   "site":"agaveapi.co",
+   "storage":{
+      "host":"52.21.60.210",
+      "port":22,
+      "protocol":"SFTP",
+      "rootDir":"/",
+      "homeDir":"/home/ubuntu",
+      "auth":{
+         "username":"ubuntu",
+         "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCBQEVi4kY8430rMCr8BsXnDrgskQzVdZiN1SP8feJKjKfwpNaJ1okwKq1E1OkA3AcnM/CiLBh6fsGGpVDtYgjXwcrhxHPnanzmkcJveSHAR3eT1F37D+1tufMHn1dSGtya1SpHUr4Pape1jh4Yk53TIgqJWHskDM8KajBFevMVLsofd+NL+/Knz6FWT2/lgJIndNPhA9oCjcikZn79YoEeYVRQPBkvtemhPBvSXF8Dw/Am3ZMgXgENxMHRgHLNC3/byZS+54YW27tOSjZb+7ifkFNA1kfE7ycas4l6DJkLLMj9E9QDy8irtPo8s2qo2YENXZfhd5DR6YW58VJ+t/5x ec2-eod-compute",
+         "privateKey": "",
+         "type": "SSHKEYS"
+      }
+   }
+}
