@@ -1,0 +1,24 @@
+{
+  "name": "test-eod-winnow",
+  "appId": "Winnow-0.9",
+  "inputs": {
+    "Class": ["agave://validate.staging.storage//home/validate/apps/winnow-0.9/Test09/Plinkkt.ote"],
+    "Folder": ["agave://validate.staging.storage//home/validate/apps/winnow-0.9/Test09/OutputPlink"]
+  },
+  "archive": false,
+  "parameters":{
+      "SNP": "SNP",
+      "Filename": "YAML_Winnow_Results",
+      "Score": "P",
+      "beta": "BETA",
+      "kttype": "OTE",
+      "seper": "whitespace",
+      "kttypeseper": "whitespace"
+  },  "notifications": [
+    {
+      "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
+      "event": "*",
+      "persistent": true
+    }
+  ]
+}

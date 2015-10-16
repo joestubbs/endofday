@@ -1,13 +1,13 @@
 name: Validate_wf
 
 inputs:
-    - ped_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.ped
-    - map_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.map
-    - bed_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.bed
-    - bim_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.bim
-    - fam_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.fam
-    - pheno_input <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.fam_pheno.txt
-    - known_truth <- agave://data.iplantcollaborative.org/spt6655/LMM-Test/SynTruth06.txt
+    - ped_input <- agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.ped
+    - map_input <- agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.map
+    - bed_input <- agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.bed
+    - bim_input <- agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.bim
+    - fam_input <- agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.fam
+    - pheno_input <- agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.fam_pheno.txt
+    - known_truth <- agave://validate.staging.storage//home/validate/data/SynTruth06.txt
 outputs:
     - ComparisonTable.csv
     - TP Histograms.pdf
@@ -20,12 +20,17 @@ processes:
         execution: agave_app
         description: Step 1
         inputs:
-            step_1_inp:
-                - inputs.ped_input
-                - inputs.map_input
-                - inputs.bed_input
-                - inputs.bim_input
+            inputFAM:
                 - inputs.fam_input
+            inputPED:
+                - inputs.ped_input
+            inputBED:
+                - inputs.bed_input
+            inputBIM:
+                - inputs.bim_input
+            inputMAP:
+                - inputs.map_input
+            inputPHENO:
                 - inputs.pheno_input
         parameters:
             MainFileset: "P"
@@ -35,12 +40,12 @@ processes:
             - YAMLTest_LMM.txt -> some_output
 
     step_2:
-        app_id: Winnow-0.7
+        app_id: Winnow-0.9
         execution: agave_app
         inputs:
-            first_inp:
+            Folder:
                 - step_1.some_output
-            other_inp:
+            Class:
                 - inputs.known_truth
         parameters:
             SNP: "SNP"
@@ -57,7 +62,7 @@ processes:
         app_id: Demonstrate-0.7
         execution: agave_app
         inputs:
-            first_inp:
+            dir:
                 - step_2.just_some_label
         outputs:
             - ComparisonTable.csv

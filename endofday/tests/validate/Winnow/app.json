@@ -1,32 +1,27 @@
 {
   "name": "Winnow",
-  "version": "0.7",
+  "version": "0.9",
   "helpURI": "https://pods.iplantcollaborative.org/wiki/display/atmman/Validate+Workflow+v0.7",
   "label": "winnow",
-  "defaultQueue": "normal",
+  "defaultQueue": "debug",
   "defaultNodeCount": 1,
-  "defaultMemoryPerNode": 8,
+  "defaultMemoryPerNode": 2,
   "defaultProcessorsPerNode": 1,
   "defaultRequestedTime": "24:00:00",
   "shortDescription": "A Python-compatible known truth testing tool for genome wide association studies.",
   "longDescription": "Winnow is a tool that evaluates other tools. Winnow requires output from a GWAS tool after analyzing a data set. Given the \"known truth\" of the original data set, Winnow outputs a series of fit statistics to determine the validity of the GWAS tool and whether or not it was truly useful in analyzing the data.",
-  "executionSystem": "stampede-07282014-1215-spt6655",
-  "executionType": "HPC",
+  "executionSystem": "validate.staging.execute",
+  "executionType": "CLI",
   "parallelism": "SERIAL",
-  "deploymentPath": "spt6655/applications/winnow-0.7",
-  "deploymentSystem": "data.iplantcollaborative.org",
-  "templatePath": "wrapper.sh",
-  "testPath": "test.sh",
+  "deploymentPath": "/home/validate/apps/winnow-0.9",
+  "deploymentSystem": "validate.staging.storage",
+  "templatePath": "wrapper09.sh",
+  "testPath": "test09.sh",
   "checkpointable": true,
   "tags": [
     "python",
     "gwas",
     "winnow"
-  ],
-  "modules": [
-    "purge",
-	"load TACC",
-	"load python"
   ],
   "inputs": [
     {
@@ -44,7 +39,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/winnow-0.5/test/kt.ote",
+	    "default": "agave://validate.staging.storage//home/validate/apps/winnow-0.9/Test09/Plinkkt.ote",
         "required": true,
         "visible": true,
         "order": 0
@@ -63,7 +58,7 @@
 	"maxCardinality": -1
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/winnow-0.5/test/OutputPLINK",
+	    "default": "agave://validate.staging.storage//home/validate/apps/winnow-0.9/Test09/OutputPLINK",
         "required": true,
         "visible": true,
         "order": 0
@@ -200,7 +195,7 @@
         "type": "number",
         "order": 0,
         "required": false,
-        "visible": false
+        "visible": true
       }
     },
     {
@@ -262,7 +257,6 @@
         ],
         "type": "enumeration",
         "visible": true,
-		"validator": null,
         "order": 0,
         "required": false
       }

@@ -2,14 +2,14 @@
   "name": "FaST-LMM",
   "version": "2.07",
   "helpURI": "https://pods.iplantcollaborative.org/wiki/display/atmman/Validate+Workflow+v0.7",
-  "defaultQueue": "normal",
+  "defaultQueue": "debug",
   "defaultRequestedTime": "3:00:00",
   "shortDescription": "Whole genome association analysis toolset",
   "longDescription": "FaST-LMM (Factored Spectrally Transformed Linear Mixed Models) is a program for performing genome-wide association studies (GWAS) on large data sets",
   "executionSystem": "validate.staging.execute",
   "executionType": "CLI",
   "parallelism": "SERIAL",
-  "deploymentPath": "/home/validate/apps/fastlmm-2.07/fastlmm",
+  "deploymentPath": "/home/validate/apps/fastlmm-2.07",
   "deploymentSystem": "validate.staging.storage",
   "templatePath": "fastlmm-wrapper.sh",
   "testPath": "test-fastlmm.sh",
@@ -19,11 +19,6 @@
     "FaST-LMM",
     "Genome",
     "Association"
-  ],
-  "modules": [
-    "purge",
-    "load TACC",
-    "load irods"
   ],
   "inputs": [
     {
@@ -57,7 +52,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.fam",
+	    "default": "agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.fam",
         "visible": true,
         "required": false
       }
@@ -75,7 +70,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.sim.txt",
+	    "default": "agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.sim.txt",
         "visible": true,
         "required": false
       }
@@ -93,7 +88,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.ped",
+	    "default": "agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.ped",
         "visible": true,
         "required": false
       }
@@ -111,7 +106,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.bed",
+	    "default": "agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.bed",
         "visible": true,
         "required": false
       }
@@ -129,7 +124,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.bim",
+	    "default": "agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.bim",
         "visible": true,
         "required": false
       }
@@ -147,7 +142,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.map",
+	    "default": "agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.map",
         "visible": true,
         "required": false
       }
@@ -183,7 +178,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.phe",
+	    "default": "agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.phe",
         "visible": true,
         "required": true
       }
@@ -202,7 +197,7 @@
         ]
       },
       "value": {
-	"default": "agave://data.iplantcollaborative.org/spt6655/applications/fastlmm-2.07/fastlmm/test/toydata.cov",
+	    "default": "agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.cov",
         "visible": true,
         "required": false
       }
@@ -259,7 +254,7 @@
       },
       "value": {
         "default": "B",
-        "type": "number",
+        "type": "string",
         "visible": true,
         "required": false
       }
@@ -268,7 +263,7 @@
       "id": "SimFileset",
       "details": {
         "label": "Fileset for similarity matrix",
-	"description": "The PLINK file group used to calculate the genetic similarity matrix (PEDMAP, BEDBIMFAM, or TPEDTFAM)",
+	    "description": "The PLINK file group used to calculate the genetic similarity matrix (PEDMAP, BEDBIMFAM, or TPEDTFAM)",
         "showAttribute": false
       },
       "semantics": {

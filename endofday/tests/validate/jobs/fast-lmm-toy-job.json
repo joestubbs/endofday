@@ -1,0 +1,26 @@
+{
+  "name": "test-eod-fast-lmm-toy",
+  "appId": "FaST-LMM-2.07",
+  "archive": false,
+  "inputs":{
+	  "inputPED": ["agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.ped"],
+	  "inputMAP": ["agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.map"],
+	  "inputBED": ["agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.bed"],
+	  "inputBIM": ["agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.bim"],
+	  "inputFAM": ["agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.fam"],
+      "inputPHENO": ["agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.phe"]
+  },
+  "parameters":{
+      "output": "YAMLTest_LMM.txt",
+      "MainFileset": "P",
+      "SimFileset": "BEDBIMFAM",
+      "verboseOutput": 0
+  },
+  "notifications": [
+    {
+      "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
+      "event": "*",
+      "persistent": true
+    }
+  ]
+}

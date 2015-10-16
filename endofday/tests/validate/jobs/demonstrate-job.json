@@ -1,0 +1,8 @@
+{
+  "name": "test-eod-demonstrate",
+  "appId": "Demonstrate-0.7",
+  "inputs": {
+    "dir": [""]
+  },
+  "archive": false
+}

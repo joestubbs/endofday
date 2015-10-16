@@ -1,0 +1,25 @@
+{
+  "name": "test-eod-fast-lmm",
+  "appId": "FaST-LMM-2.07",
+  "inputs": {
+    "inputFAM": ["agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.fam"],
+    "inputPED": ["agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.ped"],
+    "inputBED": ["agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.bed"],
+    "inputBIM": ["agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.bim"],
+    "inputMAP": ["agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.map"],
+    "inputPHENO": ["agave://validate.staging.storage//home/validate/data/PheHasStruct_089_Trait_H_06_GenotypeData_NoMissing.fam_pheno.txt"]
+  },
+  "archive": false,
+  "parameters":{
+      "output": "YAMLTest_LMM.txt",
+      "MainFileset": "P",
+      "SimFileset": "BEDBIMFAM"
+  },
+  "notifications": [
+    {
+      "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
+      "event": "*",
+      "persistent": true
+    }
+  ]
+}

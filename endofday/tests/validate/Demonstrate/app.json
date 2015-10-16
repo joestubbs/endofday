@@ -1,0 +1,229 @@
+{
+  "name": "Demonstrate",
+  "version": "0.9",
+  "helpURI": "https://pods.iplantcollaborative.org/wiki/display/atmman/Validate+Workflow+v0.9",
+  "label": "Demonstrate",
+  "defaultQueue": "debug",
+  "defaultNodeCount": 1,
+  "defaultMemoryPerNode": 2,
+  "defaultProcessorsPerNode": 1,
+  "defaultRequestedTime": "24:00:00",
+  "shortDescription": "A data visualization tool for producing human-readable graphics from Winnow output.",
+  "longDescription": "Demonstrate is the final step in the Validate known-truth pipeline for iPlant Collaborative. It produces a single data set from several Winnow results files as well as human-readable graphics showing differences in a GWAS/QTL applications performance under varying heritability and population structure.",
+  "executionSystem": "validate.staging.execute",
+  "executionType": "CLI",
+  "parallelism": "SERIAL",
+  "deploymentPath": "/home/validate/apps/demonstrate-0.9/Demonstrate-0.9",
+  "deploymentSystem": "validate.staging.storage",
+  "templatePath": "Dem_wrapper.sh",
+  "testPath": "Dem_test.sh",
+  "checkpointable": true,
+  "tags": [
+    "demonstrate",
+    "gwas",
+    "R",
+	"graphics"
+  ],
+  "modules": [],
+  "inputs": [
+    {
+      "id": "dir",
+      "details": {
+        "label": "Directory of Winnow outputs",
+        "description": "Gives the path for the directory storing all Winnow outputs",
+        "attribute": "dir",
+        "showAttribute": true
+      },
+      "semantics": {
+        "minCardinality": 1,
+		"maxCardinality": -1
+      },
+      "value": {
+	"default": "",
+        "required": true,
+        "visible": true,
+        "order": 0
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "id": "make.pos.plot",
+      "details": {
+        "label": "Make True/False Positive Plots",
+        "description": "TRUE or FALSE option for making a plot of true vs. false positives"
+      },
+      "semantics": {
+        "ontology": [
+          "xs:bool"
+        ]
+      },
+      "value": {
+        "default": 0,
+        "type": "number",
+        "required": true,
+        "visible": true,
+        "order": 1
+      }
+    },
+	{
+      "id": "pos.plot.title",
+      "details": {
+        "label": "Title for true/false positive plot",
+        "description": "The main title for the graphic (NOT the output file name)"
+      },
+      "semantics": {
+        "ontology": [
+          "xs:string"
+        ]
+      },
+      "value": {
+        "default": "True Positives by False Positives",
+        "type": "string",
+        "required": false,
+        "visible": true,
+        "order": 0
+      }
+    },
+	{
+      "id": "make.error.plot",
+      "details": {
+        "label": "Make AUC/RMSE Plots",
+        "description": "TRUE or FALSE option for making a plot of AUC values vs. root mean squared error values"
+      },
+      "semantics": {
+        "ontology": [
+          "xs:bool"
+        ]
+      },
+      "value": {
+        "default": 0,
+        "type": "number",
+        "required": true,
+        "visible": true,
+        "order": 0
+      }
+    },
+    {
+      "id": "error.plot.title",
+      "details": {
+        "label": "Title for error plot",
+        "description": "The main title for the graphic (NOT the output file name)"
+      },
+      "semantics": {
+        "ontology": [
+          "xs: string"
+        ]
+      },
+      "value": {
+        "default": "Plot of AUC by MAE",
+        "type": "string",
+        "required": false,
+        "visible": true,
+        "order": 0
+      }
+    },
+    {
+      "id": "extra.plots",
+      "details": {
+        "label": "Extra Plots option",
+        "description": "TRUE or FALSE option to create true and false positives histograms for each dataset along with a comparison table for sensitivity, specificity, and precision"
+      },
+      "semantics": {
+        "ontology": [
+          "xs:bool"
+        ]
+      },
+      "value": {
+        "default": 0,
+        "type": "number",
+        "required": true,
+        "visible": true,
+        "order": 0
+      }
+    },
+    {
+      "id": "AUC.axis.min",
+      "details": {
+        "label": "Lower boundary for AUC",
+        "description": "Lower boundary point for AUC axis on error plot (if applicable)"
+      },
+      "semantics": {
+	    "maxCardinality": 1,
+        "minCardinality": 0,
+        "ontology": [
+          "xs:decimal"
+        ]
+      },
+      "value": {
+	    "default": 0.0,
+        "type": "number",
+        "required": false,
+        "visible": true,
+        "order": 0
+      }
+    },
+    {
+      "id": "AUC.axis.max",
+      "details": {
+        "label": "Upper boundary for AUC",
+        "description": "Upper boundary point for AUC axis on error plot (if applicable)"
+      },
+      "semantics": {
+	    "maxCardinality": 1,
+        "minCardinality": 0,
+        "ontology": [
+          "xs:decimal"
+        ]
+      },
+      "value": {
+		"default": 1.0,
+        "type": "number",
+        "required": false,
+		"visible": true
+      }
+    },
+    {
+      "id": "MAE.axis.min",
+      "details": {
+        "label": "Lower boundary for MAE",
+        "description": "Lower boundary point for MAE axis on error plot (if applicable)"
+      },
+	"semantics": {
+		"maxCardinality": 1,
+        "minCardinality": 0,
+        "ontology": [
+          "xs:decimal"
+        ]
+	},
+      "value": {
+		"default": 0.0,
+        "type": "number",
+        "order": 0,
+		"required": false,
+		"visible": true
+      }
+    },
+    {
+      "id": "MAE.axis.max",
+      "details": {
+        "label": "Upper boundary for MAE",
+        "description": "Upper boundary point for MAE axis on error plot (if applicable)"
+      },
+      "semantics": {
+		"maxCardinality": 1,
+        "minCardinality": 0,
+        "ontology": [
+          "xs:decimal"
+        ]
+      },
+      "value": {
+        "default": 2.0,
+        "type": "number",
+        "visible": true,
+        "order": 0,
+        "required": false
+      }
+    }
+  ]
+}
