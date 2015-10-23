@@ -70,6 +70,17 @@ def get_outputs():
         outputs.append(job_path_or_id)
     return outputs
 
+def quote(elm):
+    """Custom jinja2 filter to properly quote an element of a JSON document."""
+    try:
+        int(elm)
+    except (TypeError, ValueError):
+        if isinstance(elm, str):
+            if elm.lower() == 'true' or elm.lower() == 'false':
+                return elm.lower()
+            return '"{}"'.format(elm)
+    return elm
+
 def submit_job(app_id, inputs, params, outputs, system_id,
                access_token, refresh_token, api_server, api_key, api_secret, verify):
     parameters = []
@@ -84,6 +95,7 @@ def submit_job(app_id, inputs, params, outputs, system_id,
                }
     conf = ConfigGen(JOB_TEMPLATE)
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
+    env.filters['quote'] = quote
     job = conf.compile(context, env)
 
     ag = Agave(api_server=api_server,

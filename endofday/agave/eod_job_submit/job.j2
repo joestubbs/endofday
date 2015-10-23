@@ -12,11 +12,11 @@
   {% if parameters %}
   "parameters": {
       {% for parm in parameters %}
-        "{{ parm.id }}": {{ parm.value }}{% if not loop.last %},{% endif %}
+        "{{ parm.id }}": {{ parm.value| quote }}{% if not loop.last %},{% endif %}
       {% endfor %}
   },
   {% endif %}
-  "archive": true,
+  "archive": false,
   "archiveSystem": "{{ system_id }}" {% if email %},{% endif %}
 
   {% if email %}
