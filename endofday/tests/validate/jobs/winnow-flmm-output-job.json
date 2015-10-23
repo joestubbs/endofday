@@ -1,0 +1,24 @@
+{
+  "name": "test-eod-winnow",
+  "appId": "Winnow-0.9",
+  "inputs": {
+    "Class": ["agave://validate.staging.storage//home/validate/data/fakekt.ote"],
+    "Folder": ["https://dev.tenants.staging.agaveapi.co/jobs/v2/2437230798411591195-242ac1171-0001-007/outputs/media/YAMLTest_LMM.csv"]
+  },
+  "archive": false,
+  "parameters":{
+      "SNP": "SNP",
+      "Filename": "YAML_Winnow_Results",
+      "Score": "Pvalue",
+      "beta": "SNPWeight",
+      "kttype": "OTE",
+      "seper": "comma",
+      "kttypeseper": "whitespace"
+  },  "notifications": [
+    {
+      "url": "http://requestb.in/vcrlobvc?job_id=${JOB_ID}&status=${JOB_STATUS}",
+      "event": "*",
+      "persistent": true
+    }
+  ]
+}

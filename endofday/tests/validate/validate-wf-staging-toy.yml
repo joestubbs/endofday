@@ -1,0 +1,79 @@
+name: Validate_wf
+
+inputs:
+    - ped_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.ped
+    - map_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.map
+    - bed_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.bed
+    - bim_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.bim
+    - fam_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.fam
+    - pheno_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.phe
+    - known_truth <- agave://validate.staging.storage//home/validate/data/fakekt.ote
+outputs:
+    - ComparisonTable.csv
+    - TP Histograms.pdf
+    - FP Histograms.pdf
+    - True Positives vs. False Positives.pdf
+    - Plot of AUC by MAE.pdf
+processes:
+    fastlmm:
+        app_id: FaST-LMM-2.07
+        execution: agave_app
+        description: Step 1
+        inputs:
+            inputFAM:
+                - inputs.fam_input
+            inputPED:
+                - inputs.ped_input
+            inputBED:
+                - inputs.bed_input
+            inputBIM:
+                - inputs.bim_input
+            inputMAP:
+                - inputs.map_input
+            inputPHENO:
+                - inputs.pheno_input
+        parameters:
+            MainFileset: "P"
+            SimFileset: "BEDBIMFAM"
+            output: "YAMLTest_LMM.csv"
+            verboseOutput: 0
+        outputs:
+            - YAMLTest_LMM.csv -> output
+
+    winnow:
+        app_id: Winnow-0.9
+        execution: agave_app
+        inputs:
+            Folder:
+                - fastlmm.output
+            Class:
+                - inputs.known_truth
+        parameters:
+            SNP: "SNP"
+            Filename: "YAML_Winnow_Results"
+            Score: "Pvalue"
+            beta: "SNPWeight"
+            kttype: "OTE"
+            seper: "comma"
+            kttypeseper: "whitespace"
+        outputs:
+            - YAML_Winnow_Results.txt -> output
+
+    demonstrate:
+        app_id: Demonstrate-0.9
+        execution: agave_app
+        inputs:
+            dir:
+                - winnow.output
+        parameters:
+            make.pos.plot: true
+            pos.plot.title: "Test Run - Pos Plot"
+            make.error.plot: true
+            error.plot.title: "Test Run - Error Plot"
+            extra.plots: false
+        outputs:
+            - ComparisonTable.csv -> comparison_table
+            - TP Histograms.pdf -> tp_histograms
+            - FP Histograms.pdf -> fp_histograms
+            - True Positives vs. False Positives -> tp_vs_fp
+            - Plot of AUC by MAE.pdf -> auc_by_mae
