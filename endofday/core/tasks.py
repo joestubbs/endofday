@@ -3,6 +3,7 @@ from __future__ import print_function
 import argparse
 import multiprocessing
 import os
+import pipes
 import subprocess
 import sys
 
@@ -588,7 +589,7 @@ class AgaveAppTask(BaseDockerTask):
         cmd += 'app_id={} '.format(self.app_id)
         print("Params: {}".format(self.params_desc))
         for k, v in self.params_desc.items():
-            cmd += '{}={} '.format(k, v)
+            cmd += pipes.quote('{}={}'.format(k, v)) + ' '
         return cmd
 
     def add_out_labels_input(self):
