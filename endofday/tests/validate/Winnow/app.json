@@ -15,7 +15,7 @@
   "parallelism": "SERIAL",
   "deploymentPath": "/home/validate/apps/winnow-0.9",
   "deploymentSystem": "validate.staging.storage",
-  "templatePath": "wrapper09.sh",
+  "templatePath": "wrapper209.sh",
   "testPath": "test09.sh",
   "checkpointable": true,
   "tags": [

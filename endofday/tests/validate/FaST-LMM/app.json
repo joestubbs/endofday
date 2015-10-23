@@ -8,6 +8,7 @@
   "longDescription": "FaST-LMM (Factored Spectrally Transformed Linear Mixed Models) is a program for performing genome-wide association studies (GWAS) on large data sets",
   "executionSystem": "validate.staging.execute",
   "executionType": "CLI",
+  "defaultMaxRunTime": "06:00:00",
   "parallelism": "SERIAL",
   "deploymentPath": "/home/validate/apps/fastlmm-2.07",
   "deploymentSystem": "validate.staging.storage",
