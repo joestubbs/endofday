@@ -713,7 +713,8 @@ class DockerLoader(TaskLoader):
     def load_tasks(cmd, opt_values, pos_args):
         cpus = multiprocessing.cpu_count()
         task_list = [dict_to_task(task.doit_dict) for task in tasks]
-        config = {'verbosity': 2}
+        config = {'verbosity': 2,
+                  'dep_file': '{}/.doit.db'.format(EOD_CONTAINER_BASE)}
         if cpus > 1:
             config['num_process'] = cpus
             print("Using multiprocessing with {} processes.".format(cpus))
