@@ -145,7 +145,7 @@ def main():
     print("Inputs:{}".format(inputs))
 
     outputs = get_outputs()
-    print("Ouputs:{}".format(outputs))
+    print("Outputs:{}".format(outputs))
 
     access_token = os.environ.get('access_token')
     refresh_token = os.environ.get('refresh_token')
