@@ -66,8 +66,8 @@ def get_outputs():
     """
     outputs = []
     with open('/agave/outputs/output_labels', 'r') as f:
-        job_path_or_id = f.readline().strip('\n')
-        outputs.append(job_path_or_id)
+        for line in f:
+            outputs.append(line.strip('\n'))
     return outputs
 
 def quote(elm):
