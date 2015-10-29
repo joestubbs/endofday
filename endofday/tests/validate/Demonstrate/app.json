@@ -13,7 +13,7 @@
   "executionSystem": "validate.staging.execute",
   "executionType": "CLI",
   "parallelism": "SERIAL",
-  "deploymentPath": "/home/validate/apps/demonstrate-0.9/Demonstrate-0.9",
+  "deploymentPath": "/home/validate/apps/demonstrate-0.9/",
   "deploymentSystem": "validate.staging.storage",
   "templatePath": "Dem_wrapper.sh",
   "testPath": "Dem_test.sh",
