@@ -66,15 +66,15 @@ processes:
             dir:
                 - winnow.output
         parameters:
-            make.pos.plot: 1
-            pos.plot.title: "Test Run - Pos Plot"
-            make.error.plot: 1
-            error.plot.title: "Test Run - Error Plot"
-            extra.plots: 1
-            AUC.axis.min: 0.0
-            AUC.axis.max: 1.0
-            MAE.axis.min:  0.0
-            MAE.axis.max: 2.5
+            make_pos_plot: 1
+            pos_plot_title: "'Test Run - Pos Plot'"
+            make_error_plot: 1
+            error_plot_title: "'Test Run - Error Plot'"
+            extra_plots: 1
+            AUC_axis_min: 0.0
+            AUC_axis_max: 1.0
+            MAE_axis_min:  0.0
+            MAE_axis_max: 2.5
         outputs:
             - ComparisonTable.csv -> comparison_table
             - TP Histograms.pdf -> tp_histograms
