@@ -8,31 +8,26 @@ command line.
 Setting Up
 ==========
 The primary dependency for this tutorial is Docker and a few images available from the public Docker hub. To install
-docker on your machine, refer to the official documentation_.
-
-.. warning:: At the moment, endofday requires the latest version of Docker (1.6) to be installed. This is because
-             endofday uses a local copy of Docker 1.6 to execute containers on the host, and Docker requires
-             the version of client and server to match. If you want to use an older version of Docker, you can mount
-             the binary into the endofday container at runtime.
+docker on your machine, refer to the official `documentation`_.
 
 Once Docker is installed, install endofday by first pulling the official image:
 
 .. code-block:: bash
 
-   $ docker pull jstubbs/endofday
+   $ docker pull jstubbs/eod
 
 Create a directory for your endofday work and run the setup script there:
 
 .. code-block:: bash
 
    $ mkdir eod; cd eod
-   $ docker run -v $(pwd):/staging jstubbs/endofday --setup
+   $ docker run -v $(pwd):/staging jstubbs/eod --setup
 
 Running ``--setup`` installs a small bash script, ``endofday.sh``, as well as an example configuration file, ``endofday.conf``, in
 the current working directory. That's it---you are now ready to run endofday workflows on your local machine.
 
 In order to execute tasks in the Agave cloud you will need an Agave account and API keys. To sign up for an Agave
-account and generate your client keys, see the beginners_guides_.
+account and generate your client keys, see the `beginners_guides`_.
 
 Once you have your Agave credentials, update the ``endofday.conf`` file with the following fields inside the ``agave`` section:
 
