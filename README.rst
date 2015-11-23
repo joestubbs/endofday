@@ -108,7 +108,7 @@ Agave cloud simply by executing:
 
    .. code-block:: bash
 
-      $ ./endofday my_workflow.yml --agave
+      $ ./endofday --agave my_workflow.yml
 
 All docker containers will be executed on the Agave cloud and their outputs archived to your default storage system
 or another storage system you configure. You can configure an email address to get a notification when the results
