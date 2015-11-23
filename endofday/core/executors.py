@@ -140,25 +140,31 @@ class AgaveExecutor(object):
                         client_name=client_name, api_key=client_key, api_secret=client_secret, verify=verify)
         print("executor constructed.")
         self.storage_system = storage_system
+        print("Storage system: {}".format(storage_system))
         self.wf_name = wf_name
         self.home_dir = home_dir
         # default the home directory to the username
         if not self.home_dir:
             self.home_dir = '/home/' + username
+        print("Home dir: {}".format(home_dir))
         # get the home dir for the system itself:
         rsp = self.ag.systems.get(systemId=storage_system)
         self.system_homedir = rsp.get('storage').get('homeDir')
         self.working_dir = os.path.join(self.home_dir, wf_name)
+        print("Working directory for this eod run: {}".format(self.working_dir))
         # create the working directory now
         if create_home_dir:
             try:
+                print("Creating the working directory on the storage system. Full path: {}".format(self.working_dir))
                 rsp = self.ag.files.manage(systemId=self.storage_system,
                                            filePath=self.home_dir,
                                            body={'action':'mkdir',
                                                  'path':wf_name})
             except (requests.exceptions.HTTPError, AgaveException):
                 # if the directory already exists we could get an error trying to create it.
-                pass
+                print("Error creating directory. Ignoring...")
+                return
+            print("Directory created.")
 
     def from_config(self):
         """
@@ -212,10 +218,13 @@ class AgaveExecutor(object):
                                        filePath=self.home_dir,
                                        body={'action':'mkdir',
                                              'path':path})
+            print "directory created."
         except Exception as e:
-            raise Error("Error creating directory on default storage system. Path: " + path +
-                        "Msg:" + str(e))
-        print "directory created."
+            if 'already exists' in str(e.message):
+                print("Directory already exists.")
+                return True
+            else:
+                raise Error("Error creating directory on default storage system. Path: " + path + "Msg:" + str(e))
         return rsp
 
     def upload_file(self, local_path, remote_path):

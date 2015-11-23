@@ -28,6 +28,12 @@ HOST_BASE = os.environ.get('STAGING_DIR')
 # the directory in the eod container that contains the current working directory of the host
 EOD_CONTAINER_BASE = '/staging'
 
+# whether or not the execution is running in the Agave cloud. This environmental variable is set by the
+# eod wrapper.sh script and prevents resubmitting individual tasks (or other sub-workflows) to Agave after an initial
+# submission.
+RUNNING_IN_AGAVE = os.environ.get('RUNNING_IN_AGAVE', False)
+print ("Running in Agave cloud: {}".format(RUNNING_IN_AGAVE))
+
 def to_eod(host_path):
     """Convert an absolute path on the host to an absolute path in the eod container"""
     if host_path.startswith(HOST_BASE):
@@ -678,16 +684,24 @@ class TaskFile(object):
             create_ae = False
             task_type = src.get('execution', 'docker')
             # supported execution types are: 'docker', 'agave', and 'agave_app'
-            if task_type == 'agave_app':
+            if task_type == 'agave':
+                # check to see if we are already executing on the agave cloud and if so, ignore this option:
+                if RUNNING_IN_AGAVE:
+                    task_type = 'docker'
+            if task_type == 'agave_app' or task_type == 'agave':
+                # both agave and agave_app execution types need an AgaveExecutor
                 create_ae = True
+            if task_type == 'agave_app':
                 task = AgaveAppTask(name, src, self.name)
             else:
                 task = SimpleDockerTask(name, src, self.name)
             self.tasks.append(task)
-        if create_ae:
-            self.ae = AgaveAppExecutor(wf_name=self.name, create_home_dir=False)
-        else:
-            self.ae = None
+        if not hasattr(self, 'ae'):
+            if create_ae:
+                print("Creating an AgaveAppExecutor...")
+                self.ae = AgaveAppExecutor(wf_name=self.name, create_home_dir=False)
+            else:
+                self.ae = None
         # once all tasks are created, we can add the output volumes to each task
         # and then set the action
         for task in self.tasks:

@@ -22,11 +22,9 @@ def upload_inputs(task_file):
         raise Error("For remote executions, the global inputs must have unique names.")
     for inp in task_file.global_inputs:
         # URIs will be passed directly to the Agave job
-        if '://' in inp.src:
+        if inp.is_uri:
             continue
-        local_path = inp.host_path
-        if RUNNING_IN_DOCKER:
-            local_path = inp.docker_host_path
+        local_path = inp.eod_container_path
         print "Uploading file", local_path, "to remote storage location:", ginp_dir
         rsp = task_file.ae.upload_file(local_path=local_path, remote_path=ginp_dir)
         responses.append(rsp)
@@ -41,10 +39,10 @@ def upload_inputs(task_file):
             raise Error("There was an error uploading a file to remote storage. Status:" + status
                         + ". URL: " + rsp.url)
 
-def upload_yml(tasl_file):
-    path = tasl_file.ae.get_taskfile(tasl_file)
+def upload_yml(task_file):
+    path = task_file.ae.get_taskfile(task_file)
     # upload to the base directory for the wf:
-    tasl_file.ae.upload_file(local_path=path, remote_path=tasl_file.name)
+    task_file.ae.upload_file(local_path=path, remote_path=task_file.name)
 
 def submit_job(task_file):
     job = task_file.ae.get_job_for_wf(task_file)
