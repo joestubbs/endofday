@@ -22,7 +22,7 @@
   "defaultProcessorsPerNode": 1,
   "defaultMemoryPerNode": "2GB",
   "defaultMaxRunTime": "01:00:00",
-  "deploymentSystem": "endofday.staging.execute",
+  "deploymentSystem": "endofday.staging.storage",
   "deploymentPath": "/home/eod/endofday-app/",
   "templatePath": "wrapper.sh",
   "testPath": "tests/test.sh",
