@@ -46,7 +46,7 @@ def upload_yml(task_file):
 
 def submit_job(task_file):
     job = task_file.ae.get_job_for_wf(task_file)
-    print "Submitting job..."
+    print "Submitting job: {}".format(job)
     try:
         rsp = task_file.ae.ag.jobs.submit(body=job)
     except Exception as e:
