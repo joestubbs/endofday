@@ -505,14 +505,15 @@ class AgaveExecutor(object):
         conf = ConfigGen(JOB_TEMPLATE)
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
         inputs = []
-        input_base = 'agave://' + self.storage_system + '/' + self.system_homedir + '/'
-        wf_path = input_base + os.path.join(self.home_dir, taskfile.name, taskfile.name + '.yml')
+        input_base = 'agave://' + self.storage_system + '/'
+        wf_path = input_base + os.path.join(self.system_homedir + '/', self.home_dir, taskfile.name, taskfile.name + '.yml')
         for gin in taskfile.global_inputs:
             # URIs get passed 'as is' to Agave:
             if '://' in gin.src:
                 path_str = gin.src
             else:
-                path_str = input_base + os.path.join(self.home_dir,
+                path_str = input_base + os.path.join(self.system_homedir + '/',
+                                                     self.home_dir,
                                                      taskfile.name,
                                                      'global_inputs', os.path.split(gin.src)[1])
             inp = {'path_str': path_str + ','}
