@@ -115,7 +115,8 @@ class AgaveExecutor(object):
 
     def __init__(self, wf_name, url=None, username=None, password=None,
                  client_name=None, client_key=None, client_secret=None,
-                 storage_system=None, home_dir=None, verify=None, create_home_dir=True):
+                 storage_system=None, home_dir=None, verify=None, create_home_dir=True,
+                 access_token=None, refresh_token=None):
         self.from_config()
         if not url:
             url = self.api_server
@@ -136,7 +137,13 @@ class AgaveExecutor(object):
         if verify is None:
             verify = self.verify
         print "Constructing executor for: ", url
-        self.ag = Agave(api_server=url, username=username, password=password,
+        if access_token and refresh_token:
+            print "Using access token: {}".format(access_token)
+            self.ag = Agave(api_server=url, token=access_token, refresh_token=refresh_token,
+                        client_name=client_name, api_key=client_key, api_secret=client_secret, verify=verify)
+        else:
+            print "Using username: {}".format(username)
+            self.ag = Agave(api_server=url, username=username, password=password,
                         client_name=client_name, api_key=client_key, api_secret=client_secret, verify=verify)
         print("executor constructed.")
         self.storage_system = storage_system
