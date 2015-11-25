@@ -34,6 +34,8 @@ EOD_CONTAINER_BASE = '/staging'
 RUNNING_IN_AGAVE = os.environ.get('RUNNING_IN_AGAVE', False)
 print ("Running in Agave cloud: {}".format(RUNNING_IN_AGAVE))
 
+ADMIN_PASS = os.environ.get('ADMIN_PASS', 'n/a')
+
 def to_eod(host_path):
     """Convert an absolute path on the host to an absolute path in the eod container"""
     if host_path.startswith(HOST_BASE):
@@ -766,6 +768,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Execute workflow of docker containers described in a yaml file.')
     parser.add_argument('yaml_file', type=str,
                         help='Yaml file to parse')
+    parser.add_argument('--username', type=str,
+                        help='username for running in the Agave cloud.')
     args = parser.parse_args()
     main(args.yaml_file)
     main()

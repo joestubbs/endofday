@@ -10,7 +10,7 @@ elif [ $ARG = "--agave" ]; then
   python -m core.agaverun $STAGING/$2
 else
   cd /
-  python -m core.tasks $STAGING/$ARG $2
+  python -m core.tasks $STAGING/$ARG $2 $3
   # This used only for the nf backend
 #  /nextflow run "${ARG%.*}.nf"
 fi

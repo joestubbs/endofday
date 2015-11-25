@@ -83,6 +83,16 @@
       }
     }
   ],
+  "parameters": [
+    { "id": "username",
+      "details": {
+        "label": "username",
+        "description": "username submitting this workflow.",
+        "repeatArgument": false,
+        "showArgument": false
+      }
+    }
+  ]
   "outputs": [
   ]
 }
