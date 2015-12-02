@@ -1,0 +1,55 @@
+name: Validate_wf_docker
+
+inputs:
+    - ped_input <- data/toydata.ped
+    - map_input <- data/toydata.map
+    - bed_input <- data/toydata.bed
+    - bim_input <- data/toydata.bim
+    - fam_input <- data/toydata.fam
+    - pheno_input <- data/toydata.phe
+    - known_truth <- data/fakekt.ote
+
+outputs:
+    - demonstrate.comptable
+    - demonstrate.TPhist
+    - demonstrate.FPhist
+    - demonstrate.TPvsFP
+    - demonstrate.AUCvsMAE
+
+processes:
+    analysis:
+        image: taccsciapps/fastlmm
+        description: Analyzes the data to produce GWAS output
+        inputs:
+            - inputs.ped_input -> /tmp/test.ped
+            - inputs.map_input -> /tmp/test.map
+            - inputs.bed_input -> /tmp/test.bed
+            - inputs.bim_input -> /tmp/test.bim
+            - inputs.fam_input -> /tmp/test.fam
+            - inputs.pheno_input -> /tmp/pheno.txt
+        outputs:
+            - /fastlmm/LMM_Docker_Results.csv -> GWAS_out
+        command: fastlmmc -verboseOutput -bfile /tmp/test -fileSim /tmp/test -pheno /tmp/pheno.txt -out LMM_Docker_Results.csv
+    
+    winnow:
+        image: taccsciapps/winnow 
+        description: Produces fit statistics for determining appropriateness of GWAS analysis tool
+        inputs:
+            - analysis.GWAS_out -> /samples/GWAS_out.csv
+            - inputs.known_truth -> /kt.ote
+        outputs:
+            - /outputs/YAML_Winnow_Results.txt -> Winnow_out
+        command: --verbose --Folder /samples --Class /kt.ote --Snp SNP --Score Pvalue --beta SNPWeight --kttype OTE --seper comma --kttypeseper whitespace --filename  /outputs/YAML_Winnow_Results
+    
+    demonstrate:
+        image: taccsciapps/demonstrate
+        description: Produce human-readable graphics from the Winnow output of the previous step
+        inputs:
+            - winnow.Winnow_out -> /tmp/results.txt
+        outputs:
+            - /tmp/ComparisonTable.csv -> comptable
+            - /tmp/'TP Histograms.pdf' -> TPhist
+            - /tmp/'FP Histograms.pdf' -> FPhist
+            - /tmp/Test_Run_Pos_Plot.pdf -> TPvsFP
+            - /tmp/Test_Run_Error_Plot.pdf -> AUCvsMAE
+        command: Rscript /usr/bin/DemonstrateRun.R /tmp TRUE Test_Run_Pos_Plot.pdf TRUE Test_Run_Error_Plot.pdf TRUE
