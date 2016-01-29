@@ -1,4 +1,4 @@
-name: Validate_wf
+name: Validate_wf_Stampede
 
 inputs:
     - ped_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.ped
@@ -8,12 +8,14 @@ inputs:
     - fam_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.fam
     - pheno_input <- agave://validate.staging.storage//home/validate/apps/fastlmm-2.07/test/toydata.phe
     - known_truth <- agave://validate.staging.storage//home/validate/data/fakekt.ote
+
 outputs:
-    - ComparisonTable.csv
-    - TP Histograms.pdf
-    - FP Histograms.pdf
-    - True Positives vs. False Positives.pdf
-    - Plot of AUC by MAE.pdf
+    - demonstrate.comptable
+    - demonstrate.TPhist
+    - demonstrate.FPhist
+    - demonstrate.TPvsFP
+    - demonstrate.AUCvsMAE
+
 processes:
     fastlmm:
         app_id: FaST-LMM-2.07
@@ -76,8 +78,8 @@ processes:
             MAE_axis_min:  0.0
             MAE_axis_max: 2.5
         outputs:
-            - ComparisonTable.csv -> comparison_table
-            - TP Histograms.pdf -> tp_histograms
-            - FP Histograms.pdf -> fp_histograms
-            - True Positives vs. False Positives -> tp_vs_fp
-            - Plot of AUC by MAE.pdf -> auc_by_mae
+            - ComparisonTable.csv -> comptable
+            - TP Histograms.pdf -> TPhist
+            - FP Histograms.pdf -> FPhist
+            - True Positives vs. False Positives -> TPvsFP
+            - Plot of AUC by MAE.pdf -> AUCvsMAE
