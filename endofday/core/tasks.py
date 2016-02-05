@@ -93,14 +93,16 @@ class GlobalInput(object):
         if not self.abs_host_path:
             raise Error("Could not compute host path for src:{}, label:{}".format(src, label))
         self.eod_container_path = to_eod(self.abs_host_path)
-        # create a file with the URI
         base_dir = os.path.dirname(self.eod_container_path)
+        # make sure the parent directory exists,
         if not os.path.exists(base_dir):
             print("Creating global input base_dir:{}".format(base_dir))
             os.makedirs(base_dir)
+        # create a file with the URI
         if self.is_uri:
             with open(self.eod_container_path, 'w') as f:
                 print(self.uri, file=f)
+            self.eod_container_cache_path = to_eod(self.abs_host_cache_path)
 
     def __str__(self):
         return 'GlobalInput:' + self.label
@@ -114,6 +116,11 @@ class GlobalInput(object):
             self.abs_host_path = os.path.join(get_host_work_dir(wf_name),
                                               'global_inputs',
                                               self.label)
+            # for remote files, we set an absolute cache path in case we need to download the file for a local task.
+            # Note: this path may never exist; we only dowload the file if it is used by a local (docker) task.
+            self.abs_host_cache_path = os.path.join(get_host_work_dir(wf_name),
+                                              'global_inputs',
+                                              '{}_cache'.format(self.label))
         else:
             if self.src.startswith('/'):
                 self.abs_host_path = self.src
@@ -189,10 +196,19 @@ class TaskInput(object):
         """Resolves the src to a global input or task output."""
         return resolve_source(self.src, global_inputs, tasks)
 
-    def set_volume(self, global_inputs, tasks):
+    def set_volume(self, global_inputs, tasks, simple_task):
         """ Set the volume object for this task input. Can only be run after all tasks are created."""
+        # real_source is either a GlobalInput or TaskOutput object
         self.real_source = self.resolve_src(global_inputs, tasks)
-        host_path = self.real_source.abs_host_path
+
+        # if the real source is a remote file, and this is an input to a simple docker task, we need to download the
+        # file to the cache file host path right before executing the container:
+        if self.real_source.is_uri and simple_task:
+            host_path = self.real_source.abs_host_cache_path
+            self.needs_download = True
+        else:
+            host_path = self.real_source.abs_host_path
+            self.needs_download = False
         container_path = self.dest
         self.volume = Volume(host_path, container_path)
 
@@ -210,7 +226,7 @@ class AddedInput(object):
         # in this case, the real_source is this input so reference it directly.
         self.real_source = self
 
-    def set_volume(self, global_inputs, tasks):
+    def set_volume(self, global_inputs, tasks, simple_task):
         self.volume = Volume(self.host_path, self.container_path)
 
 
@@ -218,7 +234,7 @@ class TaskOutput(object):
     """
     Represents a file output of a task within a workflow.
     """
-    def __init__(self, src, label, wf_name, task_name):
+    def __init__(self, src, label, wf_name, task_name, is_uri=False):
         # src is an absolute path in a container
         self.src = src
         if not self.src.startswith('/'):
@@ -238,6 +254,13 @@ class TaskOutput(object):
 
         # abs path on the host where this output can be found
         self.abs_host_path = self.get_abs_host_path()
+
+        # if the local file merely points to a remote file via a URI (e.g. an AgaveAppTaskOutput). In this case, set a
+        # path location on the host for caching the file, if necessary.
+        self.is_uri = is_uri
+        if self.is_uri:
+            self.abs_host_cache_path = '{}_cache'.format(self.abs_host_path)
+            self.eod_container_cache_path = to_eod(self.abs_host_cache_path)
 
         # immediate directory on the host containing this output
         self.host_directory = os.path.split(self.abs_host_path)[0]
@@ -303,11 +326,13 @@ class AgaveAppTaskOutput(object):
         # the task that this output belongs to
         self.task_name = task_name
 
-        # create a task output for the eod_submit_job container
+        # create a task output for the eod_submit_job container. Note: all AgaveAppTasksOutputs
+        # correspond to remote files, so is_uri should be true.
         self.task_output = TaskOutput(src=os.path.join(AGAVE_OUTPUTS_DIR, self.src),
                                       label=self.label,
                                       wf_name=self.wf_name,
-                                      task_name=self.task_name)
+                                      task_name=self.task_name,
+                                      is_uri=True)
 
 class BaseDockerTask(object):
     """ Base class for all pydoit tasks.
@@ -417,12 +442,36 @@ class BaseDockerTask(object):
         Execute the docker container on the local machine.
         """
         self.pre_action()
+        # for SimpleDockerTasks, need to download any remote inputs
+        if isinstance(self, SimpleDockerTask):
+            self.download_remote_inputs()
         docker_cmd, _, _ = self.get_docker_command(envs=getattr(self, 'envs', None))
         # now, execute the container
         print("Executing docker command:{}".format(docker_cmd))
         proc = subprocess.Popen(docker_cmd, shell=True)
         proc.wait()
         self.post_action()
+
+    def download_remote_inputs(self):
+        """
+        Download any inputs right before executing the docker container.
+        """
+        for inp in self.inputs:
+            # if the file is remote and has not been downloaded already, download it:
+            if inp.needs_download and not os.path.exists(inp.real_source.eod_container_cache_path):
+                # global inputs has the uri defined on the object:
+                if hasattr(inp.real_source, 'uri'):
+                    # this should be an agave URL
+                    src = inp.real_source.uri
+                # URIs for task outputs of agave jobs aren't stored on the object since they aren't known at
+                # runtime, so we have to read the URL dynamically.
+                else:
+                    with open(inp.real_source.eod_container_path, 'ro') as f:
+                        # this will be a jobs output service URL.
+                        src = f.read()
+                dest = inp.real_source.eod_container_cache_path
+                # todo - needs to be written
+                self.executor.download_url(src, dest)
 
     def set_action(self, executor=None):
         """
@@ -476,7 +525,7 @@ class BaseDockerTask(object):
         """ Set the input volumes for this task, once all tasks have been created."""
         result = []
         for inp in self.inputs:
-            inp.set_volume(global_inputs, tasks)
+            inp.set_volume(global_inputs, tasks, simple_task=isinstance(self, SimpleDockerTask))
             result.append(inp.volume)
         self.input_volumes = result
 
@@ -690,9 +739,11 @@ class TaskFile(object):
                 # check to see if we are already executing on the agave cloud and if so, ignore this option:
                 if RUNNING_IN_AGAVE:
                     task_type = 'docker'
+            # agave execution types need an AgaveExecutor
             if task_type == 'agave_app' or task_type == 'agave':
                 # both agave and agave_app execution types need an AgaveExecutor
                 create_ae = True
+            # agave_app execution types need an AgaveAppExecutor
             if task_type == 'agave_app':
                 task = AgaveAppTask(name, src, self.name)
             else:
