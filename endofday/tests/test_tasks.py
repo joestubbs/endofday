@@ -228,11 +228,13 @@ def test_agave_global_inputs(agave_task_file):
     assert glob_in.label == 'input'
     assert glob_in.is_uri
     assert glob_in.uri == 'agave://ex.storage.system//data/input.txt'
+    assert glob_in.used_locally == False
 
     glob_in = agave_task_file.global_inputs[1]
     assert glob_in.label == 'input_2'
     assert glob_in.is_uri
     assert glob_in.uri == 'agave://other.storage.system//home/jdoe/foo'
+    assert glob_in.used_locally == False
 
 def test_agave_tasks_length(agave_task_file):
     assert len(agave_task_file.tasks) == 2
@@ -251,6 +253,7 @@ def test_agave_add_5_task_outputs(agave_task_file):
     assert out.task_name == 'add_5'
     assert out.eod_container_path == '/staging/test_suite_wf/add_5/agave/outputs/output_id_1'
     assert out.abs_host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_id_1'
+    assert out.used_locally == False
 
 def test_agave_add_5_output_volume_mounts(agave_task_file):
     task = agave_task_file.tasks[0]
