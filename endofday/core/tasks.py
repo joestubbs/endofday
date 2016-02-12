@@ -128,6 +128,29 @@ class GlobalInput(object):
             else:
                 self.abs_host_path = os.path.join(HOST_BASE, self.src)
 
+    def set_used_locally(self, tasks):
+        """Determine whether this global input is used by a local task. Can only be run once all tasks are created."""
+        self.used_locally = set_used_locally(self, tasks)
+
+def set_used_locally(obj, tasks):
+    """Determine whether a GlobalInput or TaskOutput is used by a local task. obj should be the GlobalInput or
+    TaskOutput.
+    """
+    if isinstance(obj, GlobalInput):
+        cls = GlobalInput
+    else:
+        cls = TaskOutput
+    used_locally = False
+    for task in tasks:
+        # ignore remote tasks
+        if not task.execution == 'docker':
+            continue
+        for inp in task.inputs:
+            # if the src task has the same parent with the same label, we have a match
+            if isinstance(inp.real_source, cls) and inp.real_source.label == obj.label:
+                used_locally = True
+                break
+    return used_locally
 
 class Volume(object):
     """
@@ -189,8 +212,12 @@ class TaskInput(object):
         self.dest = dest
 
         # real_source is either a GlobalInput object or a TaskOutput object. It is
-        # computed later, in get_volumes, once all tasks have been created.
+        # computed later, once all tasks have been created.
         self.real_source = None
+
+    def set_real_source(self, global_inputs, tasks):
+        """Resolves the src to a global input or task output."""
+        self.real_source = resolve_source(self.src, global_inputs, tasks)
 
     def resolve_src(self, global_inputs, tasks):
         """Resolves the src to a global input or task output."""
@@ -229,6 +256,10 @@ class AddedInput(object):
     def set_volume(self, global_inputs, tasks, simple_task):
         self.volume = Volume(self.host_path, self.container_path)
 
+    def set_real_source(self, global_inputs, tasks):
+        """Resolves the src to a global input or task output."""
+        # in this case, the real source is the added input and is set in the constructor.
+        pass
 
 class TaskOutput(object):
     """
@@ -280,6 +311,10 @@ class TaskOutput(object):
     def get_eod_container_path(self):
         """ Returns an absolute path in the eod container to this output file. """
         return to_eod(self.abs_host_path)
+
+    def set_used_locally(self, tasks):
+        """Determine whether this output is used by a local task. Can only be run once all tasks are created."""
+        self.used_locally = set_used_locally(self, tasks)
 
     def get_volume(self):
         """ Create a volume object for this task output."""
@@ -354,7 +389,12 @@ class BaseDockerTask(object):
         self.outputs_desc = desc.get('outputs') or []
 
         # whether to run locally or in the Agave cloud
-        self.execution = desc.get('execution') or 'local'
+        # supported execution types are: 'docker', 'agave', and 'agave_app'
+        self.execution = desc.get('execution', 'docker')
+        if self.execution == 'agave':
+            # check to see if we are already executing on the agave cloud and if so, ignore this option:
+            if RUNNING_IN_AGAVE:
+                self.execution = 'docker'
 
         # Input objects list
         self.inputs = []
@@ -432,7 +472,7 @@ class BaseDockerTask(object):
             for k,v in envs.items():
                 docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
         # add the image:
-        docker_cmd += ' ' + self.image + ' '
+        docker_cmd += self.image + ' '
         # add the command:
         docker_cmd += self.command
         return docker_cmd, output_str, input_str
@@ -544,9 +584,6 @@ class SimpleDockerTask(BaseDockerTask):
 
         self.audit()
 
-        if self.execution == 'agave':
-            self.executor = AgaveExecutor(wf_name=wf_name)
-
         # create the TaskInput objects
         for inp in self.parse_in_out_desc(self.inputs_desc, 'input'):
             self.inputs.append(TaskInput(src=inp[0], dest=inp[1]))
@@ -570,13 +607,57 @@ class SimpleDockerTask(BaseDockerTask):
         if not type(self.image) == str:
             raise Error("Image must be a string.")
         self.image = self.image.strip()
-        if self.execution == 'agave' or self.execution == 'local':
+        if self.execution == 'agave' or self.execution == 'docker':
             pass
         else:
             raise Error("Invalid execution specified for task:{}. " +
-                        "Valid options are: local, agave.".format(self.name))
+                        "Valid options are: docker, agave.".format(self.name))
         if self.command:
             self.command = self.command.strip()
+
+    def remote_inputs(self):
+        """Return a list of TaskInput objects that are on remote servers."""
+
+
+class AgaveDownloadTask(BaseDockerTask):
+    """ Represents a task that executes a docker container to download a file on a remote server."""
+
+    def __init__(self, obj, wf_name):
+        # the GlobalInput or TaskOutput that should be downloaded
+        self.obj = obj
+
+        # either global inputs or the name of a task
+        if isinstance(obj, GlobalInput):
+            self.parent = 'inputs'
+        else:
+            self.parent = obj.task_name
+
+        # name of the task
+        name = 'download_{}_{}'.format(self.parent, self.obj.label)
+
+        # the image for the download container
+        self.image = 'jstubbs/eod_download'
+
+        # description dictionary for creating the base object
+        desc = {'inputs': ['{} -> /agave/inputs/1'.format(self.parent, obj.label)],
+                'outputs': ['/agave/outputs/1 -> {}.{}'.format(self.name, obj.label)],
+                'image': self.image,
+                }
+        super(AgaveDownloadTask, self).__init__(name, desc, wf_name)
+
+        for inp in self.parse_in_out_desc(self.inputs_desc, 'input'):
+            self.inputs.append(TaskInput(src=inp[0], dest=inp[1]))
+
+        # create the TaskOutput objects
+        for out in self.parse_in_out_desc(self.outputs_desc, 'output'):
+            self.outputs.append(TaskOutput(src=out[0],
+                                           label=out[1],
+                                           wf_name=wf_name,
+                                           task_name=self.name))
+
+        # notify obj that this is its download task
+        obj.download_task = self
+
 
 class AgaveAppTask(BaseDockerTask):
     """ Represents a task to execute an agave app by submitting a job. Translates a description of an
@@ -728,41 +809,55 @@ class TaskFile(object):
 
     def create_tasks(self):
         """
-        Creates a the task objects associated with the processes dictionary.
+        Creates the task objects associated with the processes dictionary.
         """
         # first, create the tasks from their descriptions
         for name, src in self.proc_dict.items():
-            create_ae = False
             task_type = src.get('execution', 'docker')
-            # supported execution types are: 'docker', 'agave', and 'agave_app'
-            if task_type == 'agave':
-                # check to see if we are already executing on the agave cloud and if so, ignore this option:
-                if RUNNING_IN_AGAVE:
-                    task_type = 'docker'
-            # agave execution types need an AgaveExecutor
-            if task_type == 'agave_app' or task_type == 'agave':
-                # both agave and agave_app execution types need an AgaveExecutor
-                create_ae = True
-            # agave_app execution types need an AgaveAppExecutor
             if task_type == 'agave_app':
                 task = AgaveAppTask(name, src, self.name)
             else:
                 task = SimpleDockerTask(name, src, self.name)
             self.tasks.append(task)
-        if not hasattr(self, 'ae'):
-            if create_ae:
-                print("Creating an AgaveAppExecutor...")
-                self.ae = AgaveAppExecutor(wf_name=self.name, create_home_dir=False)
-            else:
-                self.ae = None
-        # once all tasks are created, we can add the output volumes to each task
-        # and then set the action
+        # once tasks are created, set real_source on the task inputs
+        for task in self.tasks:
+            for inp in task.inputs:
+                inp.set_real_source(self.global_inputs, self.tasks)
+
+        # once the real_sources have been set, determine if remote GlobalInputs and TaskOutputs are used locally,
+        # and create a task to download them if necessary
+        for inp in self.global_inputs:
+            inp.set_used_locally(self.tasks)
+            if inp.is_uri and inp.used_locally:
+                self.tasks.append(AgaveDownloadTask(inp, self.name))
+        for task in self.tasks:
+            for out in task.outputs:
+                out.set_used_locally(self.tasks)
+                if out.is_uri and out.used_locally:
+                    self.tasks.append(AgaveDownloadTask(out, self.name))
+        # with these new download tasks created, the real sources for inputs could have changed. Update them:
+        for task in self.tasks:
+            # only matters for local tasks
+            if not task.execution == 'docker':
+                continue
+            for inp in task.inputs:
+                if inp.real_source.is_uri:
+                    inp.real_source = inp.real_source.download_task.inputs[0]
+
+        # finally, once all tasks are created, we can add the output volumes to each task, create an agave executor if
+        # needed, and set the action
         for task in self.tasks:
             task.set_output_volume_mounts()
             task.set_input_volumes(self.global_inputs, self.tasks)
-            if task.execution == 'agave_app':
-                task.ae = self.ae
-                task.set_action(self.ae)
+            # agave app tasks and download tasks get an AgaveAppExecutor so they use local_action_fn
+            if isinstance(task, AgaveAppTask) or isinstance(task, AgaveDownloadTask):
+                task.ae = AgaveAppExecutor(wf_name=self.name, create_home_dir=False)
+                task.set_action(task.ae)
+            # docker tasks with execution 'agave' use an AgaveExecutor with the
+            elif task.execution == 'agave':
+                task.ae = AgaveExecutor(wf_name=self.wf_name)
+                task.set_action(task.ae)
+            # plain docker task running locally; no executor
             else:
                 task.set_action()
             task.set_doit_dict()
