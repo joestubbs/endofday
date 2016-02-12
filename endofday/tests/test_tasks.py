@@ -2,11 +2,12 @@
 Tests for the tasks module.
 
 To run the tests:
-1. Make sure endofday.conf has necessary fields for interacting with iplant.
+1. Create an endofday.conf in the cwd (the /tests directory) with all necessary fields for interacting with the public tenant.
 2. If not putting them in the config, export AGAVE_CLIENT_SECRET and AGAVE_PASSWORD as env vars.
-3. Build the latest eod container and run tests using:
-    $ docker run --rm -it --entrypoint=py.test -v /:/host -v $(pwd):/staging -e RUNNING_IN_DOCKER=true -e STAGING_DIR=/testsuite/cwd/on/host eod /tests/test_tasks.py
-
+3. Leave the  -e STAGING_DIR=/testsuite/cwd/on/host as is: this is used by the test suite to ensure the paths are computed
+   correctly.
+4. Build the latest image as jstubbs/eod (or jstubbs/eod-alpine and update the command below) and run tests using:
+    $ docker run --rm -it --entrypoint=py.test -v /:/host -v $(pwd):/staging -e RUNNING_IN_DOCKER=true -e STAGING_DIR=/testsuite/cwd/on/host jstubbs/eod /tests/test_tasks.py
 """
 
 import os
@@ -76,7 +77,7 @@ def test_add_5_task_basic(task_file):
     assert task.image == 'jstubbs/add_n'
     assert task.command == 'python add_n.py -i 5'
     assert task.description == 'Add 5 to all inputs.'
-    assert task.execution == 'local'
+    assert task.execution == 'docker'
 
 def test_add_5_inputs(task_file):
     task = task_file.tasks[0]
@@ -124,7 +125,7 @@ def test_mult_3_task_basic(task_file):
     assert task.image == 'jstubbs/mult_n'
     assert task.command == 'python mult_n.py -f 3'
     assert task.description == 'Multiply all inputs by 3.'
-    assert task.execution == 'local'
+    assert task.execution == 'docker'
 
 def test_mult_3_inputs(task_file):
     task = task_file.tasks[1]
@@ -192,7 +193,7 @@ def test_sum_task_basic(task_file):
     assert task.image == 'jstubbs/sum'
     assert task.command == 'python sum.py'
     assert task.description == 'Sum all inputs.'
-    assert task.execution == 'local'
+    assert task.execution == 'docker'
 
 def test_sum_inputs(task_file):
     task = task_file.tasks[2]
@@ -271,12 +272,12 @@ def test_agave_add_5_input_volumes(agave_task_file):
 
     inpv = task.input_volumes[2]
     assert inpv.container_path == '/agave/outputs/output_labels'
-    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/output_labels'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_labels'
 
 def test_agave_add_5_docker_command(agave_task_file):
     task = agave_task_file.tasks[0]
     cmd, _, _ = task.get_docker_command()
-    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs:/agave/outputs -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input:/agave/inputs/input_id_1/0 -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2:/agave/inputs/input_id_1/1 -v /testsuite/cwd/on/host/test_suite_wf/add_5/output_labels:/agave/outputs/output_labels jstubbs/eod_job_submit python submit.py /agave/output_labels app_id=add_n some_param_id=1 some_other_param_id=verbose '
+    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs:/agave/outputs -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input:/agave/inputs/input_id_1/0 -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2:/agave/inputs/input_id_1/1 -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_labels:/agave/outputs/output_labels jstubbs/eod_job_submit python /eod_job_submit/submit.py app_id=add_n some_param_id=1 some_other_param_id=verbose '
 
 # mult_n tests
 def test_agave_mult_n_task_outputs(agave_task_file):
@@ -313,4 +314,4 @@ def test_agave_mult_n_input_volumes(agave_task_file):
 
     inpv = task.input_volumes[3]
     assert inpv.container_path == '/agave/outputs/output_labels'
-    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/mult_n/output_labels'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/mult_n/agave/outputs/output_labels'
