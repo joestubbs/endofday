@@ -38,6 +38,15 @@ def agave_task_file():
     # task_file.create_tasks()
     return agave_task_file
 
+@pytest.fixture(scope='session')
+def mix_task_file():
+    tf_path = os.path.join(HERE, 'sample_mix_wf.yml')
+    mix_task_file = parse_yaml(tf_path)
+    # task_file = TaskFile(tf_path)
+    # task_file.create_glob_ins()
+    # task_file.create_tasks()
+    return mix_task_file
+
 
 def test_basic_task_file_attrs(task_file):
     assert task_file.path == os.path.join(HERE, 'sample_wf.yml')
@@ -318,3 +327,62 @@ def test_agave_mult_n_input_volumes(agave_task_file):
     inpv = task.input_volumes[3]
     assert inpv.container_path == '/agave/outputs/output_labels'
     assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_wf/mult_n/agave/outputs/output_labels'
+
+
+
+
+# mix_task_file tests
+def test_mix_basic_task_file_attrs(mix_task_file):
+    assert mix_task_file.path == os.path.join(HERE, 'sample_mix_wf.yml')
+    assert mix_task_file.name == 'test_suite_wf'
+    assert mix_task_file.glob_ins[0] == 'input <- agave://ex.storage.system//data/input.txt'
+    assert mix_task_file.glob_ins[1] == 'input_2 <- agave://other.storage.system//home/jdoe/foo'
+    assert mix_task_file.glob_ins[2] == 'loc_in <- loc_in.txt'
+    assert mix_task_file.global_inputs[0].label == 'input'
+    assert mix_task_file.global_inputs[0].src == 'agave://ex.storage.system//data/input.txt'
+    assert mix_task_file.global_inputs[1].src == 'agave://other.storage.system//home/jdoe/foo'
+    assert mix_task_file.global_inputs[1].label == 'input_2'
+    assert mix_task_file.global_inputs[2].label == 'loc_in'
+    assert mix_task_file.global_inputs[2].src == 'loc_in.txt'
+
+def test_mix_global_inputs(mix_task_file):
+    assert len(mix_task_file.global_inputs) == 3
+    glob_in = mix_task_file.global_inputs[0]
+    assert glob_in.label == 'input'
+    assert glob_in.is_uri
+    assert glob_in.uri == 'agave://ex.storage.system//data/input.txt'
+    assert glob_in.used_locally == True
+
+    glob_in = mix_task_file.global_inputs[1]
+    assert glob_in.label == 'input_2'
+    assert glob_in.is_uri
+    assert glob_in.uri == 'agave://other.storage.system//home/jdoe/foo'
+    assert glob_in.used_locally == True
+
+    glob_in = mix_task_file.global_inputs[2]
+    assert glob_in.label == 'loc_in'
+    assert not glob_in.is_uri
+    assert glob_in.src == 'loc_in.txt'
+    assert glob_in.used_locally == False
+
+def test_mix_tasks_length(mix_task_file):
+    assert len(mix_task_file.tasks) == 8
+
+def test_mix_tasks_names_and_order(mix_task_file):
+    assert mix_task_file.tasks[0].name == 'add_5_local'
+    assert mix_task_file.tasks[1].name == 'add_5_local2'
+    assert mix_task_file.tasks[2].name == 'add_5'
+    assert mix_task_file.tasks[3].name == 'mult_n'
+    assert mix_task_file.tasks[4].name == 'sum'
+    assert mix_task_file.tasks[5].name == 'download_inputs.input'
+    assert mix_task_file.tasks[6].name == 'download_inputs.input_2'
+    assert mix_task_file.tasks[7].name == 'download_mult_n.just_some_label'
+
+def test_mix_inp_real_source(mix_task_file):
+    task = mix_task_file.tasks[0]
+    assert len(task.inputs) == 1
+    inp = task.inputs[0]
+    task2 = mix_task_file.tasks[5]
+    assert len(task2.inputs) == 1
+    assert len(task2.outputs) == 1
+    assert inp.real_source == task2.outputs[0]
