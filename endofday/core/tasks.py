@@ -583,21 +583,24 @@ class AgaveDownloadTask(BaseDockerTask):
             self.parent = obj.task_name
 
         # name of the task
-        name = 'download_{}_{}'.format(self.parent, self.obj.label)
+        self.name = 'download_{}.{}'.format(self.parent, self.obj.label)
 
         # the image for the download container
         self.image = 'jstubbs/eod_download'
 
         # description dictionary for creating the base object
-        desc = {'inputs': ['{} -> /agave/inputs/1'.format(self.parent, obj.label)],
+        self.desc = {'inputs': ['{}.{} -> /agave/inputs/1'.format(self.parent, obj.label)],
                 'outputs': ['/agave/outputs/1 -> {}.{}'.format(self.name, obj.label)],
                 'image': self.image,
                 }
-        super(AgaveDownloadTask, self).__init__(name, desc, wf_name)
+        super(AgaveDownloadTask, self).__init__(self.name, self.desc, wf_name)
 
-        for inp in self.parse_in_out_desc(self.inputs_desc, 'input'):
-            self.inputs.append(TaskInput(src=inp[0], dest=inp[1]))
-
+        # exactly one input; still go through parse_in_out_desc to keep things uniform.
+        inp = self.parse_in_out_desc(self.inputs_desc, 'input')[0]
+        self.inputs.append(TaskInput(src=inp[0], dest=inp[1]))
+        # real_source is not computed for Download tasks, but it is trivial. Needs
+        # to be the actual input
+        self.inputs[0].real_source = obj
         # create the TaskOutput objects
         for out in self.parse_in_out_desc(self.outputs_desc, 'output'):
             self.outputs.append(TaskOutput(src=out[0],
@@ -786,12 +789,15 @@ class TaskFile(object):
                     self.tasks.append(AgaveDownloadTask(out, self.name))
         # with these new download tasks created, the real sources for inputs could have changed. Update them:
         for task in self.tasks:
-            # only matters for local tasks
-            if not task.execution == 'docker':
+            # only matters for local tasks that aren't download tasks
+            if not task.execution == 'docker' or isinstance(task, AgaveDownloadTask):
                 continue
             for inp in task.inputs:
+                if not inp.real_source:
+                    raise Exception("input without real source: {}. task:{}".format(
+                        inp.src, task.name))
                 if inp.real_source.is_uri:
-                    inp.real_source = inp.real_source.download_task.inputs[0]
+                    inp.real_source = inp.real_source.download_task.outputs[0]
 
         # finally, once all tasks are created, we can add the output volumes to each task, create an agave executor if
         # needed, and set the action
