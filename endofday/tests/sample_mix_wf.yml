@@ -1,0 +1,65 @@
+name: test_suite_wf
+
+inputs:
+    - input <- agave://ex.storage.system//data/input.txt
+    - input_2 <- agave://other.storage.system//home/jdoe/foo
+    - loc_in <- loc_in.txt
+
+outputs:
+    - sum.output
+
+processes:
+    add_5_local:
+        image: jstubbs/add_n
+        description: Add 5 to all inputs.
+        inputs:
+            - inputs.input -> /data/input.txt
+        outputs:
+            - /data/output.txt -> output
+        command: python add_n.py -i 5
+
+    add_5_local2:
+        image: jstubbs/add_n
+        description: Add 5 to all inputs.
+        inputs:
+            - inputs.input -> /data/input.txt
+        outputs:
+            - /data/output.txt -> output
+        command: python add_n.py -i 5
+
+    add_5:
+        app_id: add_n
+        execution: agave_app
+        description: Add 5 to all inputs.
+        inputs:
+            input_id_1:
+                - inputs.input
+                - inputs.input_2
+        parameters:
+            some_param_id: 1
+            some_other_param_id: verbose
+        outputs:
+            - output_id_1 -> some_output
+
+    mult_n:
+        app_id: mult_n
+        execution: agave_app
+        inputs:
+            some_input_id:
+                - add_5.some_output
+                - inputs.input
+            some_other_input_id:
+                - inputs.input_2
+        outputs:
+            - some_output_id -> just_some_label
+
+    sum:
+        image: jstubbs/sum
+        description: Local docker execution relying on remote agave URL and job URL.
+        inputs:
+            - mult_n.just_some_label -> /data/in.txt
+            - add_5_local2.output -> /data/loc_in
+            - inputs.input_2 -> /data/input_1
+        outputs:
+            - /data/out.txt -> output
+        command: python sum.py
