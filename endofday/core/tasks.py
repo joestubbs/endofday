@@ -16,9 +16,11 @@ from doit.task import dict_to_task
 from doit.cmd_base import TaskLoader
 from doit.doit_cmd import DoitMain
 
+from agavepy.async import AgaveAsyncResponse
+
 from .config import Config
 from .error import Error
-from .executors import AgaveAsyncResponse, AgaveExecutor, AgaveAppExecutor
+from .executors import AgaveExecutor, AgaveAppExecutor
 from .hosts import update_hosts
 
 
