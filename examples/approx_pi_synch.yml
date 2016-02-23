@@ -1,0 +1,37 @@
+---
+
+name: approx_pi_sync
+
+inputs:
+    - input <- genpoints.conf
+
+
+outputs:
+    - approx_pi.pi
+
+
+processes:
+    generate_coords:
+        image: jstubbs/genpoints
+        description: creates lists of randomly generated coordinates from [0,1]
+        inputs:
+            - inputs.input -> /data/gen.conf
+        outputs:
+            - /output/ -> out
+        command: python ./genpoints.py -p /data/gen.conf -o /output
+
+    count_points:
+        image: jstubbs/ctpts
+        inputs:
+            - generate_coords.out -> /tmp/input
+        outputs:
+            - /tmp/output -> out
+        command: python ./ctpoints.py -p /tmp/input
+
+    approx_pi:
+        image: jstubbs/apprxpi
+        inputs:
+            - count_points.out -> /data/out_0
+        outputs:
+            - /tmp/pi -> out
+        command: python ./apprxpi.py -p /data
