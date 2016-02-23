@@ -31,6 +31,10 @@ def genpoints(n, f, path):
     """
     Generates n coordinates into t output files labeled out_$i in the path directory.
     """
+    try:
+        os.makedirs(path)
+    except OSError:
+        pass
     for i in range(f):
         out = open('{}/out_{}'.format(path,i), 'w')
         for j in range(n):

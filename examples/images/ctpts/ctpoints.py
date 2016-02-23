@@ -20,8 +20,8 @@ def ctpoints(path):
     for f in files:
         print f
     for f in files:
-        with open (f, 'rb') as f:
-            for line in f:
+        with open(f, 'rb') as fl:
+            for line in fl:
                 parts = line.split(',')
                 x = decimal.Decimal(parts[0].strip())
                 y = decimal.Decimal(parts[1].strip())
