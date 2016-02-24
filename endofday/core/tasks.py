@@ -38,6 +38,7 @@ print ("Running in Agave cloud: {}".format(RUNNING_IN_AGAVE))
 
 ADMIN_PASS = os.environ.get('ADMIN_PASS', 'n/a')
 
+
 def to_eod(host_path):
     """Convert an absolute path on the host to an absolute path in the eod container"""
     if host_path.startswith(HOST_BASE):
@@ -439,6 +440,9 @@ class BaseDockerTask(object):
         Returns a docker run command for executing the task image.
         """
         docker_cmd = "docker run --rm"
+        # always mount the token cache file in case it is needed:
+        host_cache_path = os.path.join(HOST_BASE, '.agpy_cache')
+        docker_cmd += " -v {}:/root/.agpy_cache".format(host_cache_path)
         # order important here -- need to mount output dirs first so that
         # inputs overlay them.
         output_str = ' '
@@ -868,6 +872,18 @@ class TaskFile(object):
             task.set_doit_dict()
 
 
+def create_cache_files():
+    """ Creates the .agpy and .agpy_cache files in the eod container."""
+    # Need to create the .agpy file as well since the agavepy client created by the AgaveExecutors will look for this
+    # file to determine the cache path location.
+    # path to token cache in the eod container
+    agpy = os.path.join(EOD_CONTAINER_BASE, '.agpy')
+    if not os.path.exists(agpy):
+        open(agpy, 'a').close()
+    agpy_cache_path = os.path.join(EOD_CONTAINER_BASE, '.agpy_cache')
+    if not os.path.exists(agpy_cache_path):
+        open(agpy_cache_path, 'a').close()
+
 def parse_yaml(yaml_file):
     task_file = TaskFile(yaml_file)
     task_file.create_glob_ins()
@@ -905,6 +921,7 @@ def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
 
 
 def main(yaml_file):
+    create_cache_files()
     # parse yml file and add tasks to global 'tasks' variable
     task_file = parse_yaml(yaml_file)
     # load global tasks

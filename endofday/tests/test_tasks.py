@@ -124,7 +124,7 @@ def test_add_5_input_volumes(task_file):
 def test_add_5_docker_command(task_file):
     task = task_file.tasks[0]
     cmd, _, _ = task.get_docker_command()
-    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/test_suite_wf/add_5/data:/data -v /home/jstubbs/github-repos/endofday/examples/input.txt:/data/input.txt  jstubbs/add_n python add_n.py -i 5'
+    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/.agpy_cache:/root/.agpy_cache -v /testsuite/cwd/on/host/test_suite_wf/add_5/data:/data -v /home/jstubbs/github-repos/endofday/examples/input.txt:/data/input.txt  jstubbs/add_n python add_n.py -i 5'
 
 
 # mult_3 tests
@@ -193,7 +193,7 @@ def test_mult_3_input_volumes(task_file):
 def test_mult_3_docker_command(task_file):
     task = task_file.tasks[1]
     cmd, _, _ = task.get_docker_command()
-    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/test_suite_wf/mult_3/tmp:/tmp -v /testsuite/cwd/on/host/test_suite_wf/add_5/data/output.txt:/tmp/input  jstubbs/mult_n python mult_n.py -f 3'
+    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/.agpy_cache:/root/.agpy_cache -v /testsuite/cwd/on/host/test_suite_wf/mult_3/tmp:/tmp -v /testsuite/cwd/on/host/test_suite_wf/add_5/data/output.txt:/tmp/input  jstubbs/mult_n python mult_n.py -f 3'
 
 # sum tests
 def test_sum_task_basic(task_file):
@@ -289,7 +289,7 @@ def test_agave_add_5_input_volumes(agave_task_file):
 def test_agave_add_5_docker_command(agave_task_file):
     task = agave_task_file.tasks[0]
     cmd, _, _ = task.get_docker_command()
-    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs:/agave/outputs -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input:/agave/inputs/input_id_1/0 -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2:/agave/inputs/input_id_1/1 -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_labels:/agave/outputs/output_labels  jstubbs/eod_job_submit python /eod_job_submit/submit.py app_id=add_n some_param_id=1 some_other_param_id=verbose '
+    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/.agpy_cache:/root/.agpy_cache -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs:/agave/outputs -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input:/agave/inputs/input_id_1/0 -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2:/agave/inputs/input_id_1/1 -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_labels:/agave/outputs/output_labels  jstubbs/eod_job_submit python /eod_job_submit/submit.py app_id=add_n some_param_id=1 some_other_param_id=verbose '
 
 # mult_n tests
 def test_agave_mult_n_task_outputs(agave_task_file):
