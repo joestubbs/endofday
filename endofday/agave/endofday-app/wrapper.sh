@@ -1,3 +1,3 @@
 #!/bin/bash
 chmod +x endofday.sh
-./endofday.sh ${wf} ${username}
+./endofday.sh ${wf}
