@@ -1,0 +1,29 @@
+# Mix of agave apps and local docker containers.
+
+name: test_suite_algebra_mix
+
+inputs:
+    - input <- agave://endofday.staging.storage//data/algebra.yml
+
+outputs:
+    - step_2.output
+
+processes:
+    step_1:
+        app_id: endofday-local-0.0.1
+        execution: agave_app
+        description: Run the alegbra.yml workflow using the endofday-local Agave app.
+        inputs:
+            wf:
+                - inputs.input
+        outputs:
+            - algebra/sum/data/out.txt -> sum
+    step_2:
+        image: jstubbs/add_n
+        description: Add 5 to all inputs.
+        inputs:
+            - step_1.sum -> /data/input.txt
+        outputs:
+            - /data/output.txt -> output
+        command: python add_n.py -i 5
+
