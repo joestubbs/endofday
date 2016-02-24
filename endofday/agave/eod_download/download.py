@@ -23,7 +23,7 @@ JOB_TEMPLATE = '/job.j2'
 VERIFY = False
 
 def get_uri():
-    with open(os.path.join('/agave/inputs/1', 'r') as f:
+    with open('/agave/inputs/1') as f:
         uri = f.readline().strip('\n')
     return uri
 
