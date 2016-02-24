@@ -228,9 +228,14 @@ class AddedInput(object):
     def __init__(self, host_path, container_path):
         self.host_path = host_path
         self.container_path = container_path
+
         self.abs_host_path = host_path
         # in this case, the real_source is this input so reference it directly.
         self.real_source = self
+        # other types of inputs (GlobalInputs and TaskInputs) have a real_source that is either a TaskOutput or
+        # a GlobalInput, and these then have an eod_container_path attribute. Since real_source is self for an
+        # AddedInput, we add an eod_container_path attr here, which is needed in, for ex, set_doit_dict.
+        self.eod_container_path = to_eod(self.host_path)
 
     def set_volume(self, global_inputs, tasks, simple_task):
         self.volume = Volume(self.host_path, self.container_path)
@@ -448,9 +453,9 @@ class BaseDockerTask(object):
             for k,v in envs.items():
                 docker_cmd += ' -e ' + '"' + str(k) + '=' + str(v) + '"'
         # add the image:
-        docker_cmd += self.image + ' '
+        docker_cmd += ' ' + self.image
         # add the command:
-        docker_cmd += self.command
+        docker_cmd += ' ' + self.command
         return docker_cmd, output_str, input_str
 
     def local_action_fn(self):
@@ -620,6 +625,9 @@ class AgaveDownloadTask(BaseDockerTask):
         # the image for the download container
         self.image = 'jstubbs/eod_download'
 
+        # command to run in the container
+        self.command = 'python /eod_download/download.py'
+
         # description dictionary for creating the base object
         self.desc = {'inputs': ['{}.{} -> /agave/inputs/1'.format(self.parent, obj.label)],
                 'outputs': ['/agave/outputs/1 -> {}.{}'.format(self.name, obj.label)],
@@ -642,6 +650,16 @@ class AgaveDownloadTask(BaseDockerTask):
 
         # notify obj that this is its download task
         obj.download_task = self
+
+    def pre_action(self):
+        """ Get a current access token right before executing"""
+        self.envs = {'access_token': self.ae.ag.token.token_info['access_token'],
+                     'refresh_token': self.ae.ag.token.token_info['refresh_token'],
+                     'system_id': self.ae.storage_system,
+                     'api_server': self.ae.ag.api_server,
+                     'api_key': self.ae.ag.api_key,
+                     'api_secret': self.ae.ag.api_secret,
+                     'verify': self.ae.ag.verify}
 
 
 class AgaveAppTask(BaseDockerTask):
