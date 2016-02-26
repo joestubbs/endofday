@@ -36,7 +36,15 @@ EOD_CONTAINER_BASE = '/staging'
 RUNNING_IN_AGAVE = os.environ.get('RUNNING_IN_AGAVE', False)
 print ("Running in Agave cloud: {}".format(RUNNING_IN_AGAVE))
 
-ADMIN_PASS = os.environ.get('ADMIN_PASS', 'n/a')
+# determine the host and eod paths for the cache file. used for mounting into containers.
+if RUNNING_IN_AGAVE:
+    agpy = '/host/home/eod/.agpy'
+    agpy_host_cache_path = '/home/eod/.agpy_cache'
+    agpy_eod_cache_path = '/host/home/eod/.agpy_cache'
+else:
+    agpy = os.path.join(EOD_CONTAINER_BASE, '.agpy')
+    agpy_host_cache_path = os.path.join(HOST_BASE, '.agpy_cache')
+    agpy_eod_cache_path = os.path.join(EOD_CONTAINER_BASE, '.agpy_cache')
 
 
 def to_eod(host_path):
@@ -119,7 +127,12 @@ class GlobalInput(object):
                                               'global_inputs',
                                               self.label)
         else:
-            if self.src.startswith('/'):
+            # if we are running on the agave cloud, all global inputs that resided locally were already uploaded and staged
+            # to the job directory
+            if RUNNING_IN_AGAVE:
+                self.abs_host_path = os.path.join(HOST_BASE, os.path.split(self.src)[1])
+            # we are running on the host and it is an absolute path
+            elif self.src.startswith('/'):
                 self.abs_host_path = self.src
             # otherwise, it's a relative path so it will be in the HOST_BASE
             else:
@@ -441,8 +454,7 @@ class BaseDockerTask(object):
         """
         docker_cmd = "docker run --rm"
         # always mount the token cache file in case it is needed:
-        host_cache_path = os.path.join(HOST_BASE, '.agpy_cache')
-        docker_cmd += " -v {}:/root/.agpy_cache".format(host_cache_path)
+        docker_cmd += " -v {}:/root/.agpy_cache".format(agpy_host_cache_path)
         # order important here -- need to mount output dirs first so that
         # inputs overlay them.
         output_str = ' '
@@ -877,12 +889,10 @@ def create_cache_files():
     # Need to create the .agpy file as well since the agavepy client created by the AgaveExecutors will look for this
     # file to determine the cache path location.
     # path to token cache in the eod container
-    agpy = os.path.join(EOD_CONTAINER_BASE, '.agpy')
     if not os.path.exists(agpy):
         open(agpy, 'a').close()
-    agpy_cache_path = os.path.join(EOD_CONTAINER_BASE, '.agpy_cache')
-    if not os.path.exists(agpy_cache_path):
-        open(agpy_cache_path, 'a').close()
+    if not os.path.exists(agpy_eod_cache_path):
+        open(agpy_eod_cache_path, 'a').close()
 
 def parse_yaml(yaml_file):
     task_file = TaskFile(yaml_file)
