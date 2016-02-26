@@ -24,9 +24,11 @@ class AgaveConfigParser(ConfigParser.ConfigParser):
 def read_config():
     parser = AgaveConfigParser()
     places = ['/endofday.conf',
-              os.path.expanduser('/etc/endofday.conf'),
               os.path.abspath(os.path.join(HERE, '../endofday.conf')),
-              '/staging/endofday.conf',]
+              '/host/etc/endofday.conf',
+              '/staging/endofday.conf',
+              '/host/home/eod/endofday.conf',
+              ]
     if not parser.read(places):
         raise Error("couldn't read config file from {0}"
                            .format(', '.join(places)))
