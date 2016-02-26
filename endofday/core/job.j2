@@ -4,7 +4,7 @@
   "inputs": {
     "wf": ["{{ wf_path }}"],
     {% if global_inputs %}
-    "glob_in": ["{% for inp in global_inputs %}{{ inp.path_str }}"{% endfor %}]
+    "glob_in": [{% for inp in global_inputs %}"{{ inp.path_str }}"{% if not loop.last %},{% endif %}{% endfor %}]
     {% endif %}
   },
   "archive": true,
