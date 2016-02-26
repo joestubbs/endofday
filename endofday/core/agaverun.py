@@ -5,9 +5,11 @@ import argparse
 import os
 import requests
 
+from agavepy.async import AgaveAsyncResponse
+
 from .docker import RUNNING_IN_DOCKER
 from .error import Error
-from .executors import AgaveExecutor, AgaveAsyncResponse
+from .executors import AgaveExecutor
 from .hosts import update_hosts
 import tasks
 
@@ -39,13 +41,14 @@ def upload_inputs(task_file):
             raise Error("There was an error uploading a file to remote storage. Status:" + status
                         + ". URL: " + rsp.url)
 
-def upload_yml(task_file):
-    path = task_file.ae.get_taskfile(task_file)
+def upload_yml(path, task_file):
     # upload to the base directory for the wf:
+    print "Uploading file", path, "to remote storage location:", task_file.name
     task_file.ae.upload_file(local_path=path, remote_path=task_file.name)
 
-def submit_job(task_file):
-    job = task_file.ae.get_job_for_wf(task_file)
+
+def submit_job(task_file, yaml_file_name):
+    job = task_file.ae.get_job_for_wf(task_file, yaml_file_name)
     print "Submitting job: {}".format(job)
     try:
         rsp = task_file.ae.ag.jobs.submit(body=job)
@@ -58,13 +61,12 @@ def submit_job(task_file):
 
 def main(yaml_file):
     task_file = tasks.TaskFile(yaml_file)
-    if not hasattr(task_file, 'ae'):
-        task_file.ae = AgaveExecutor(wf_name=task_file.name)
+    task_file.ae = AgaveExecutor(wf_name=task_file.name)
     task_file.create_glob_ins()
-    task_file.create_tasks()
     upload_inputs(task_file)
-    upload_yml(task_file)
-    rsp = submit_job(task_file)
+    upload_yml(yaml_file, task_file)
+    yaml_file_name = os.path.split(yaml_file)[1]
+    rsp = submit_job(task_file, yaml_file_name)
     if rsp.response.get('id'):
         print 'Job submitting successfully. The id for your job is: ', rsp.response.get('id')
         print 'You can check the status history of your job by making an authenticated request to: ', \

@@ -28,7 +28,7 @@ class AgaveExecutor(object):
     def __init__(self, wf_name, url=None, username=None, password=None,
                  client_name=None, client_key=None, client_secret=None,
                  storage_system=None, home_dir=None, verify=None, create_home_dir=True,
-                 access_token=None, refresh_token=None):
+                 access_token=None, refresh_token=None, admin_password=None):
         self.from_config()
         if not url:
             url = self.api_server
@@ -36,6 +36,8 @@ class AgaveExecutor(object):
             username = self.username
         if not password:
             password = self.password
+        if not admin_password:
+            admin_password = self.admin_password
         if not client_name:
             client_name = self.client_name
         if not client_key:
@@ -56,7 +58,8 @@ class AgaveExecutor(object):
         else:
             print "Using username: {}".format(username)
             self.ag = Agave(api_server=url, username=username, password=password,
-                        client_name=client_name, api_key=client_key, api_secret=client_secret, verify=verify)
+                        client_name=client_name, api_key=client_key, api_secret=client_secret,
+                        verify=verify, admin_password=admin_password)
         print("executor constructed.")
         self.storage_system = storage_system
         print("Storage system: {}".format(storage_system))
@@ -96,11 +99,16 @@ class AgaveExecutor(object):
             raise Error('Invalid config: api_server is required.')
         self.username = Config.get('agave', 'username')
         if not self.username:
+            self.username = os.environ.get('AGAVE_USERNAME')
+        if not self.username:
             raise Error('Invalid config: username is required.')
         self.password = Config.get('agave', 'password')
         if not self.password:
             self.password = os.environ.get('AGAVE_PASSWORD')
-        if not self.password:
+        self.admin_password = Config.get('agave', 'admin_password')
+        if not self.admin_password:
+            self.admin_password = os.environ.get('AGAVE_ADMIN_PASSWORD')
+        if not self.password and not self.admin_password:
             raise Error('Invalid config: password is required.')
         self.client_name = Config.get('agave', 'client_name')
         if not self.client_name:
@@ -415,7 +423,7 @@ class AgaveExecutor(object):
             context['email'] = self.email
         return conf.compile(context, env)
 
-    def get_job_for_wf(self, taskfile):
+    def get_job_for_wf(self, taskfile, yaml_file_name):
         """
         Returns JSON description of an endofday job for entire wf after compiling the job.j2 template.
         :param task:
@@ -425,7 +433,7 @@ class AgaveExecutor(object):
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(HERE), trim_blocks=True, lstrip_blocks=True)
         inputs = []
         input_base = 'agave://' + self.storage_system + '/'
-        wf_path = input_base + os.path.join(self.system_homedir + '/', self.home_dir, taskfile.name, taskfile.name + '.yml')
+        wf_path = input_base + os.path.join(self.system_homedir + '/', self.home_dir, taskfile.name, yaml_file_name)
         for gin in taskfile.global_inputs:
             # URIs get passed 'as is' to Agave:
             if '://' in gin.src:
@@ -435,10 +443,8 @@ class AgaveExecutor(object):
                                                      self.home_dir,
                                                      taskfile.name,
                                                      'global_inputs', os.path.split(gin.src)[1])
-            inp = {'path_str': path_str + ','}
+            inp = {'path_str': path_str}
             inputs.append(inp)
-        # remove trailing comma from last entry:
-        inputs[-1]['path_str'] = inputs[-1]['path_str'][:-1]
         context = {'wf_name': self.wf_name,
                    'global_inputs': inputs,
                    'wf_path': wf_path,
