@@ -24,14 +24,24 @@ execute the same workflow from one host to the next by simply copying the yml fi
 software installation is needed: if the images are not available locally, they will be pulled automatically from the
 Docker hub when endofday executes.
 
-Currently, endofday supports three modes of execution: *local*, *cloud*, and *hybrid*. With the local mode of execution, the
-entire workflow is executed on the same host running the endofday binary itself. To support executing workflows in a
-remote cloud, endofday leverages the Agave_ science-as-a-service platform. Using your Agave credentials, you can execute
-an entire endofday workflow in Agave's cloud infrastructure and have the outputs automatically archived to an Agave
-storage system you have pre-configured. Agave will send you an email when the job completes. Alternatively, with the
-hybrid execution mode, you can specify individual containers to execute in the cloud while others execute locally. In
-this case, inputs will be uploaded and outputs downloaded automatically by the endofday engine. In the tutorial we
-cover each execution mode by working through specific examples.
+endofday also has first class support for data and applications registered within the Agave_ science-as-a-service
+platform, so data inputs and application assets do not need to reside on the same machine as endofday and applications
+do not have to be packaged into containers or even executed on hosts that can run Docker. To provide Agave support,
+endofday ships two additional Docker images that handle retrieving Agave URLs and submitting jobs, and the core engine
+provides two classes for executing these images when appropriate.
+
+The Agave support is an indication of how easy it is to extend endofday to integrate other kinds of processes and
+workloads. Essentially, one only needs to wrap the process in a generic docker image and implement a class to be
+called by the main engine. Using this technique, it would be easy to provide support for arbitrary web service calls,
+for example.
+
+By default, the endofday binary orchestrates the workflow execution synchronously and locally (even if the processes
+themselves are running on remote servers), logging messages to standard out during the execution. Alternatively,
+using your Agave credentials, you can execute an entire workflow asynchronously and remotely in Agave's cloud. The
+outputs will be archived to a pre-configured storage system and you can even configure endofday to have
+Agave email you when the job completes.
+
+In the tutorial we cover each execution mode by working through specific examples.
 
 .. _YAML: http://yaml.org/
 .. _Docker: http://docker.com
