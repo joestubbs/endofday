@@ -32,8 +32,8 @@ provides two classes for executing these images when appropriate.
 
 The Agave support is an indication of how easy it is to extend endofday to integrate other kinds of processes and
 workloads. Essentially, one only needs to wrap the process in a generic docker image and implement a class to be
-called by the main engine. Using this technique, it would be easy to provide support for arbitrary web service calls,
-for example.
+called by the main engine. Using this technique, it would be easy to provide support for other kinds of processes
+such as web service calls, for example.
 
 By default, the endofday binary orchestrates the workflow execution synchronously and locally (even if the processes
 themselves are running on remote servers), logging messages to standard out during the execution. Alternatively,
