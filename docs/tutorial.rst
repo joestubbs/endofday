@@ -403,7 +403,7 @@ Otherwise, endofday will leave the output on the remote system defined in the ap
 
 The yaml syntax used to define an Agave application process is similar to that for Docker container processes, with
 a few exceptions. We illustrate with an example from the Validate workflow system, a set of applications for genome
- wide association studies. You can find complete examples of Validate workflows definitions in the eod repo_.
+wide association studies. You can find complete examples of Validate workflow definitions in the eod repo_.
 
 .. code-block:: YAML
 
