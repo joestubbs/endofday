@@ -34,7 +34,7 @@ def upload_inputs(task_file):
     for rsp in responses:
         print "Waiting on upload:", rsp.url
         status = rsp.result()
-        if status == 'COMPLETE':
+        if status == 'FINISHED':
             print "Upload completed."
         else:
             print "Upload failed... aborting."

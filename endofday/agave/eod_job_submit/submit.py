@@ -187,7 +187,7 @@ def main():
     # block until job completes
     print("Async response object from submit: {}".format(rsp.response))
     result = rsp.result()
-    if not result == 'COMPLETE':
+    if not result == 'FINISHED':
         raise Error("Job for app_id: " + app_id + " failed to complete. Job status: " + result + ". URL: " + rsp.url)
     print("Job completed.")
     write_outputs(outputs, job_id, api_server)

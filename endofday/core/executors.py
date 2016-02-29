@@ -99,7 +99,10 @@ class AgaveExecutor(object):
             raise Error('Invalid config: api_server is required.')
         self.username = Config.get('agave', 'username')
         if not self.username:
+            print("Using username from environment:{}".format(self.username))
             self.username = os.environ.get('AGAVE_USERNAME')
+        else:
+            print("Using username from config: {}".format(self.username))
         if not self.username:
             raise Error('Invalid config: username is required.')
         self.password = Config.get('agave', 'password')
@@ -233,8 +236,8 @@ class AgaveExecutor(object):
         for rsp in responses:
             print "Waiting on upload:", rsp.url
             status = rsp.result()
-            if status == 'COMPLETE':
-                print "Upload completed."
+            if status == 'FINISHED':
+                print "Upload finished."
             else:
                 print "Upload failed... aborting."
                 raise Error("There was an error uploading a file to remote storage. Status:" + status
@@ -376,7 +379,7 @@ class AgaveExecutor(object):
             print "Job submitted successfully. URL:", rsp.url
             # block until job completes
             result = rsp.result()
-            if not result == 'COMPLETE':
+            if not result == 'FINISHED':
                 raise Error("Job for task: " + task.name + " failed to complete. Job status: " + result + ". URL: " + rsp.url)
             print "Job completed."
             # download results:
