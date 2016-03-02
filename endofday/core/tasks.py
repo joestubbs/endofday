@@ -452,7 +452,12 @@ class BaseDockerTask(object):
         """
         Returns a docker run command for executing the task image.
         """
-        docker_cmd = "docker run --rm"
+        host_docker = os.environ.get('DOCKER_BINARY')
+        if host_docker:
+            docker_binary = '/host{}'.format(host_docker)
+        else:
+            docker_binary = 'docker'
+        docker_cmd = "{} run --rm".format(docker_binary)
         # always mount the token cache file in case it is needed:
         docker_cmd += " -v {}:/root/.agpy_cache".format(agpy_host_cache_path)
         # order important here -- need to mount output dirs first so that
@@ -482,9 +487,16 @@ class BaseDockerTask(object):
         docker_cmd, _, _ = self.get_docker_command(envs=getattr(self, 'envs', None))
         # now, execute the container
         print("Executing docker command:{}".format(docker_cmd))
-        proc = subprocess.Popen(docker_cmd, shell=True)
-        proc.wait()
-        self.post_action()
+        try:
+            subprocess.check_call(docker_cmd, shell=True)
+            self.post_action()
+        except subprocess.CalledProcessError as e:
+            raise Error("Task {} failed with exception: ".format(self.name, e))
+        # proc = subprocess.Popen(docker_cmd, shell=True)
+        # proc.wait()
+        # if not proc.returncode == 0:
+        #     raise Error("Task {} failed with return code {}".format(self.name,
+        #                                                             proc.returncode))
 
     def set_action(self, executor=None):
         """
