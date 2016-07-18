@@ -64,6 +64,8 @@ AGAVE_INPUTS_DIR = '/agave/inputs'
 # the directory where the eod_submit_job container will look for inputs'
 AGAVE_OUTPUTS_DIR = '/agave/outputs'
 
+# list of all local execution types:
+local_execution_types = ['docker', 'script', 'pynb']
 
 # global tasks list to pass to the DockerLoader
 tasks = []
@@ -151,9 +153,10 @@ def set_used_locally(obj, tasks):
     else:
         cls = TaskOutput
     used_locally = False
+    # loop over all tasks to see if a local task uses this object
     for task in tasks:
         # ignore remote tasks
-        if not task.execution == 'docker':
+        if not task.execution in local_execution_types:
             continue
         for inp in task.inputs:
             # if the src task has the same parent with the same label, we have a match
@@ -161,6 +164,7 @@ def set_used_locally(obj, tasks):
                 used_locally = True
                 break
     return used_locally
+
 
 class Volume(object):
     """
@@ -384,7 +388,7 @@ class BaseDockerTask(object):
         self.outputs_desc = desc.get('outputs') or []
 
         # whether to run locally or in the Agave cloud
-        # supported execution types are: 'docker', 'agave', and 'agave_app'
+        # supported execution types are: 'docker', 'agave', 'agave_app', 'script' and 'pynb'
         self.execution = desc.get('execution', 'docker')
         if self.execution == 'agave':
             # check to see if we are already executing on the agave cloud and if so, ignore this option:
@@ -434,6 +438,9 @@ class BaseDockerTask(object):
         """
         result = []
         output_volumes = []
+        # if the child class set output volumes we will start with those
+        if hasattr(self, output_volumes):
+            output_volumes = self.output_volumes
         for output in self.outputs:
             output_volumes.append(output.volume)
         output_volumes.sort(key= lambda vol:vol.container_path)
@@ -622,11 +629,11 @@ class SimpleDockerTask(BaseDockerTask):
         if not type(self.image) == str:
             raise Error("Image must be a string.")
         self.image = self.image.strip()
-        if self.execution == 'agave' or self.execution == 'docker':
+        if self.execution == 'docker':
             pass
         else:
             raise Error("Invalid execution specified for task:{}. " +
-                        "Valid options are: docker, agave.".format(self.name))
+                        "Valid options are: docker.".format(self.name))
         if self.command:
             self.command = self.command.strip()
 
@@ -787,6 +794,68 @@ class AgaveAppTask(BaseDockerTask):
                      'api_secret': self.ae.ag.api_secret,
                      'verify': self.ae.ag.verify}
 
+
+class ScriptTask(BaseDockerTask):
+    """ Represents a task to execute a script on the host system. Executes the script by first
+    mounting a parent directory in a docker container, together with additional mounts for
+    the inputs and outputs.
+    Note: this class can be further subclasses to provide support for more specific kinds of
+    scripts such as ipython notebooks.
+    """
+    def __init__(self, name, desc, wf_name):
+        super(ScriptTask, self).__init__(name, desc, wf_name)
+
+        # the parent directory, on the host, for the script
+        self.parent_dir = desc.get('parent_dir')
+
+        # the path on the host to the script, relative to the parent dir
+        self.script_path = desc.get('script')
+
+        # absolute path on the host to the script
+        self.abs_host_script_path = os.path.join(self.parent_dir, self.script_path)
+
+        self.image = 'jstubbs/eod_exec_script'
+
+        self.audit()
+
+        # Create a special output volume for the entire parent directory so that it is mounted
+        # first
+        self.output_volumes = [Volume(host_path=self.parent_dir,
+                                      container_path='/scripts/')]
+
+        # create the TaskInput objects - here, the "dest" provided by the user is a relative
+        # path, so we place it in the "/scripts" directory in the root of the container.
+        for inp in self.parse_in_out_desc(self.inputs_desc, 'input'):
+            self.inputs.append(TaskInput(src=inp[0], dest='/scripts/{}'.format(inp[1])))
+
+        # Now create the TaskOutputs for the actual outputs. Again, the sources provided are
+        # relative paths, so prepend "/scripts" to the paths.
+        for out in self.parse_in_out_desc(self.outputs_desc, 'output'):
+            self.outputs.append(TaskOutput(src='/scripts/{}'.format(out[0]),
+                                           label=out[1],
+                                           wf_name=wf_name,
+                                           task_name=self.name))
+
+class NotebookTask(ScriptTask):
+    """ Represents a task to execute an iPython notebook file residing on the host system.
+    """
+    def __init__(self, name, desc, wf_name):
+        super(NotebookTask, self).__init__(name, desc, wf_name)
+
+        self.image = 'jstubbs/eod_exec_ipnb'
+
+        self.command = cmd = [
+            "jupyter", "nbconvert",
+            "--log-level=ERROR",
+            "--ExecutePreprocessor.timeout=120",
+            "--execute",
+            "--inplace",
+            "--to", "notebook",
+            "--output", self.script_path,
+            self.script_path
+        ]
+
+
 class TaskFile(object):
     """
     Utility class for working with a yaml file that represents a docker
@@ -847,6 +916,10 @@ class TaskFile(object):
             task_type = src.get('execution', 'docker')
             if task_type == 'agave_app':
                 task = AgaveAppTask(name, src, self.name)
+            elif task_type == 'script':
+                task = ScriptTask(name, src, self.name)
+            elif task_type == 'pynb':
+                task = NotebookTask(name, src, self.name)
             else:
                 task = SimpleDockerTask(name, src, self.name)
             self.tasks.append(task)
@@ -854,8 +927,8 @@ class TaskFile(object):
         for task in self.tasks:
             for inp in task.inputs:
                 inp.set_real_source(self.global_inputs, self.tasks)
-        # once the real_sources have been set, determine if remote GlobalInputs and TaskOutputs are used locally,
-        # and create a task to download them if necessary
+        # once the real_sources have been set, determine if remote GlobalInputs and
+        # TaskOutputs are used locally, and create a task to download them if necessary
         for inp in self.global_inputs:
             inp.set_used_locally(self.tasks)
             if inp.is_uri and inp.used_locally:
@@ -865,10 +938,15 @@ class TaskFile(object):
                 out.set_used_locally(self.tasks)
                 if out.is_uri and out.used_locally:
                     self.tasks.append(AgaveDownloadTask(out, self.name))
-        # with these new download tasks created, the real sources for inputs could have changed. Update them:
+        # With these new download tasks created, the real sources for inputs could have
+        # changed from a user-defined to task to an eod-added download task.
+        # We need to update these real sources:
         for task in self.tasks:
-            # only matters for local tasks that aren't download tasks
-            if not task.execution == 'docker' or isinstance(task, AgaveDownloadTask):
+            # skip tasks that aren't local tasks:
+            if not task.execution in local_execution_types:
+                continue
+            # skip the download tasks themselves as well:
+            if isinstance(task, AgaveDownloadTask):
                 continue
             for inp in task.inputs:
                 if not inp.real_source:
@@ -876,9 +954,8 @@ class TaskFile(object):
                         inp.src, task.name))
                 if inp.real_source.is_uri:
                     inp.real_source = inp.real_source.download_task.outputs[0]
-
-        # finally, once all tasks are created, we can add the output volumes to each task, create an agave executor if
-        # needed, and set the action
+        # finally, once all tasks are created, we can add the output volumes to each task,
+        # create an agave executor if needed, and set the action
         for task in self.tasks:
             task.set_output_volume_mounts()
             task.set_input_volumes(self.global_inputs, self.tasks)

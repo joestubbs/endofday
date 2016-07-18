@@ -47,6 +47,12 @@ def mix_task_file():
     # task_file.create_tasks()
     return mix_task_file
 
+@pytest.fixture(scope='session')
+def scripts_mix_task_file():
+    tf_path = os.path.join(HERE, 'sample_scripts_mix_wf.yml')
+    scripts_mix_task_file = parse_yaml(tf_path)
+    return scripts_mix_task_file
+
 
 def test_basic_task_file_attrs(task_file):
     assert task_file.path == os.path.join(HERE, 'sample_wf.yml')
@@ -386,3 +392,18 @@ def test_mix_inp_real_source(mix_task_file):
     assert len(task2.inputs) == 1
     assert len(task2.outputs) == 1
     assert inp.real_source == task2.outputs[0]
+
+
+# scripts_mix_task_file tests
+def test_scripts_mix_basic_task_file_attrs(scripts_mix_task_file):
+    assert mix_task_file.path == os.path.join(HERE, 'sample_scripts_mix_wf.yml')
+    assert mix_task_file.name == 'test_mix_suite_wf'
+    assert mix_task_file.glob_ins[0] == 'input <- agave://ex.storage.system//data/input.txt'
+    assert mix_task_file.glob_ins[1] == 'input_2 <- agave://other.storage.system//home/jdoe/foo'
+    assert mix_task_file.glob_ins[2] == 'loc_in <- loc_in.txt'
+    assert mix_task_file.global_inputs[0].label == 'input'
+    assert mix_task_file.global_inputs[0].src == 'agave://ex.storage.system//data/input.txt'
+    assert mix_task_file.global_inputs[1].src == 'agave://other.storage.system//home/jdoe/foo'
+    assert mix_task_file.global_inputs[1].label == 'input_2'
+    assert mix_task_file.global_inputs[2].label == 'loc_in'
+    assert mix_task_file.global_inputs[2].src == 'loc_in.txt'

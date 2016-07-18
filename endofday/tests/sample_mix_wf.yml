@@ -1,4 +1,4 @@
-name: test_suite_wf
+name: test_mix_suite_wf
 
 inputs:
     - input <- agave://ex.storage.system//data/input.txt
