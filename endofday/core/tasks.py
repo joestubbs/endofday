@@ -412,6 +412,13 @@ class BaseDockerTask(object):
             print("Creating task base_dir:{}".format(self.eod_base_path))
             os.makedirs(self.eod_base_path)
 
+    def audit(self):
+        """Run basic audits on a constructed task. Work in progress."""
+        if not self.name:
+            raise Error("Name required for every task.")
+        if not type(self.name) == str:
+            raise Error("Name must be a string.")
+
     def parse_in_out_desc(self, desc, kind):
         """ Parses the inputs/outputs description and returns a list of pairs, (src, dest).
 
@@ -439,7 +446,7 @@ class BaseDockerTask(object):
         result = []
         output_volumes = []
         # if the child class set output volumes we will start with those
-        if hasattr(self, output_volumes):
+        if hasattr(self, 'output_volumes'):
             output_volumes = self.output_volumes
         for output in self.outputs:
             output_volumes.append(output.volume)
@@ -844,16 +851,15 @@ class NotebookTask(ScriptTask):
 
         self.image = 'jstubbs/eod_exec_ipnb'
 
-        self.command = cmd = [
-            "jupyter", "nbconvert",
-            "--log-level=ERROR",
-            "--ExecutePreprocessor.timeout=120",
-            "--execute",
-            "--inplace",
-            "--to", "notebook",
-            "--output", self.script_path,
+        self.command = cmd = "jupyter nbconvert " + \
+            "--log-level=ERROR " + \
+            "--ExecutePreprocessor.timeout=120 " + \
+            "--execute " + \
+            "--inplace " + \
+            "--to notebook " + \
+            "--output " + self.script_path + " " + \
             self.script_path
-        ]
+
 
 
 class TaskFile(object):
