@@ -340,7 +340,7 @@ def test_agave_mult_n_input_volumes(agave_task_file):
 # mix_task_file tests
 def test_mix_basic_task_file_attrs(mix_task_file):
     assert mix_task_file.path == os.path.join(HERE, 'sample_mix_wf.yml')
-    assert mix_task_file.name == 'test_suite_wf'
+    assert mix_task_file.name == 'test_mix_suite_wf'
     assert mix_task_file.glob_ins[0] == 'input <- agave://ex.storage.system//data/input.txt'
     assert mix_task_file.glob_ins[1] == 'input_2 <- agave://other.storage.system//home/jdoe/foo'
     assert mix_task_file.glob_ins[2] == 'loc_in <- loc_in.txt'
@@ -396,14 +396,65 @@ def test_mix_inp_real_source(mix_task_file):
 
 # scripts_mix_task_file tests
 def test_scripts_mix_basic_task_file_attrs(scripts_mix_task_file):
-    assert mix_task_file.path == os.path.join(HERE, 'sample_scripts_mix_wf.yml')
-    assert mix_task_file.name == 'test_mix_suite_wf'
-    assert mix_task_file.glob_ins[0] == 'input <- agave://ex.storage.system//data/input.txt'
-    assert mix_task_file.glob_ins[1] == 'input_2 <- agave://other.storage.system//home/jdoe/foo'
-    assert mix_task_file.glob_ins[2] == 'loc_in <- loc_in.txt'
-    assert mix_task_file.global_inputs[0].label == 'input'
-    assert mix_task_file.global_inputs[0].src == 'agave://ex.storage.system//data/input.txt'
-    assert mix_task_file.global_inputs[1].src == 'agave://other.storage.system//home/jdoe/foo'
-    assert mix_task_file.global_inputs[1].label == 'input_2'
-    assert mix_task_file.global_inputs[2].label == 'loc_in'
-    assert mix_task_file.global_inputs[2].src == 'loc_in.txt'
+    assert scripts_mix_task_file.path == os.path.join(HERE, 'sample_scripts_mix_wf.yml')
+    assert scripts_mix_task_file.name == 'test_suite_scripts_mix'
+
+def test_scripts_mix_tasks_length(scripts_mix_task_file):
+    # 3 user defined tasks
+    # 1 download for global input
+    # 1 download task for step_1.sum
+    # 5 total
+    assert len(scripts_mix_task_file.tasks) == 5
+
+def test_scripts_mix_tasks_names_and_order(scripts_mix_task_file):
+    assert scripts_mix_task_file.tasks[0].name == 'step_1'
+    assert scripts_mix_task_file.tasks[1].name == 'step_2'
+    assert scripts_mix_task_file.tasks[2].name == 'step_3'
+    assert scripts_mix_task_file.tasks[3].name == 'download_inputs.input'
+    assert scripts_mix_task_file.tasks[4].name == 'download_step_1.sum'
+
+def test_scripts_mix_execution(scripts_mix_task_file):
+    script_task = scripts_mix_task_file[3]
+    assert script_task.execution == 'pynb'
+
+def test_scripts_mix_parent_path(scripts_mix_task_file):
+    script_task = scripts_mix_task_file[3]
+    assert script_task.parent_path == '/some/abs/path/'
+
+def test_scripts_mix_inputs(scripts_mix_task_file):
+    task = scripts_mix_task_file[3]
+    assert len(task.inputs) == 3
+    #TODO
+    inpv = task.input_volumes[0]
+    assert inpv.container_path == '/scripts/some/rel/path/inputs/input_1'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_2/data/output.txt'
+
+    inpv = task.input_volumes[1]
+    assert inpv.container_path == '/scripts/some/rel/path/inputs/input_2'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/global_inputs/input'
+
+    inpv = task.input_volumes[2]
+    assert inpv.container_path == '/scripts/other/rel/path/sum'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_1/agave/outputs/out.txt'
+
+def test_scripts_mix_outputs(scripts_mix_task_file):
+    script_task = scripts_mix_task_file[3]
+    #first output volume should always be the parent_dir mount
+    outv = script_task.output_volume_mounts[0]
+    assert outv.container_path == '/scripts/'
+    assert outv.host_path == '/some/abs/path/'
+
+    outv = script_task.output_volume_mounts[1]
+    assert outv.container_path == '/scripts/some/rel/path/outputs/'
+    assert outv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_3/some/rel/path/outputs/output.txt'
+
+def test_scripts_mix_command(scripts_mix_task_file):
+    script_task = scripts_mix_task_file[3]
+    # TODO
+    assert script_task.inputs == 'ipnb'
+
+def test_scripts_mix_docker_command(agave_task_file):
+    task = agave_task_file.tasks[0]
+    cmd, _, _ = task.get_docker_command()
+    # TODO
+    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/.agpy_cache:/root/.agpy_cache -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs:/agave/outputs -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input:/agave/inputs/input_id_1/0 -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2:/agave/inputs/input_id_1/1 -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_labels:/agave/outputs/output_labels  jstubbs/eod_job_submit python /eod_job_submit/submit.py app_id=add_n some_param_id=1 some_other_param_id=verbose '
