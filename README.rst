@@ -16,7 +16,7 @@ download anything. To get started:
 
    .. code-block:: bash
 
-      $ docker run -v $(pwd):/staging jstubbs/endofday --setup
+      $ docker run -v $(pwd):/staging jstubbs/eod --setup
 
    This command installs a single script ``endofday.sh`` in the
    current working directory.
