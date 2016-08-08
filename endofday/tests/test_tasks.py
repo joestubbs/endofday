@@ -414,47 +414,64 @@ def test_scripts_mix_tasks_names_and_order(scripts_mix_task_file):
     assert scripts_mix_task_file.tasks[4].name == 'download_step_1.sum'
 
 def test_scripts_mix_execution(scripts_mix_task_file):
-    script_task = scripts_mix_task_file[3]
+    script_task = scripts_mix_task_file.tasks[2]
     assert script_task.execution == 'pynb'
 
-def test_scripts_mix_parent_path(scripts_mix_task_file):
-    script_task = scripts_mix_task_file[3]
-    assert script_task.parent_path == '/some/abs/path/'
+def test_scripts_mix_parent_dir(scripts_mix_task_file):
+    script_task = scripts_mix_task_file.tasks[2]
+    assert script_task.parent_dir == '/some/abs/path/'
 
 def test_scripts_mix_inputs(scripts_mix_task_file):
-    task = scripts_mix_task_file[3]
+    task = scripts_mix_task_file.tasks[2]
     assert len(task.inputs) == 3
-    #TODO
+
     inpv = task.input_volumes[0]
     assert inpv.container_path == '/scripts/some/rel/path/inputs/input_1'
     assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_2/data/output.txt'
 
     inpv = task.input_volumes[1]
     assert inpv.container_path == '/scripts/some/rel/path/inputs/input_2'
-    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/global_inputs/input'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/download_inputs.input/agave/outputs/1'
 
     inpv = task.input_volumes[2]
     assert inpv.container_path == '/scripts/other/rel/path/sum'
-    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_1/agave/outputs/out.txt'
+    assert inpv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/download_step_1.sum/agave/outputs/1'
 
 def test_scripts_mix_outputs(scripts_mix_task_file):
-    script_task = scripts_mix_task_file[3]
+    script_task = scripts_mix_task_file.tasks[2]
+
+    # should only be 2 total output volumes
+    assert len(script_task.output_volume_mounts) == 2
+
+    # should only be 1 TaskOutput, the file output.
+    assert len(script_task.outputs) == 1
+    task_out = script_task.outputs[0]
+    assert task_out.src == '/scripts/some/rel/path/outputs/output.txt'
+    assert task_out.file_name == 'output.txt'
+    assert task_out.abs_host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_3/scripts/some/rel/path/outputs/output.txt'
+    assert task_out.host_directory == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_3/scripts/some/rel/path/outputs'
+
+    # check the volume attached to the TaskOutput object
+    task_out_vol = script_task.outputs[0].volume
+    assert task_out_vol.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_3/scripts/some/rel/path/outputs'
+    assert task_out_vol.container_path == '/scripts/some/rel/path/outputs'
+
     #first output volume should always be the parent_dir mount
     outv = script_task.output_volume_mounts[0]
     assert outv.container_path == '/scripts/'
     assert outv.host_path == '/some/abs/path/'
 
+    #second output volume mount should be the actual file output
     outv = script_task.output_volume_mounts[1]
-    assert outv.container_path == '/scripts/some/rel/path/outputs/'
-    assert outv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_3/some/rel/path/outputs/output.txt'
+    assert outv.host_path == '/testsuite/cwd/on/host/test_suite_scripts_mix/step_3/scripts/some/rel/path/outputs'
+    assert outv.container_path == '/scripts/some/rel/path/outputs'
+
 
 def test_scripts_mix_command(scripts_mix_task_file):
-    script_task = scripts_mix_task_file[3]
-    # TODO
-    assert script_task.inputs == 'ipnb'
+    script_task = scripts_mix_task_file.tasks[2]
+    assert script_task.command == 'jupyter nbconvert --log-level=ERROR --ExecutePreprocessor.timeout=120 --execute --inplace --to notebook --output /scripts/some/rel/path/my_notebook.ipnb /scripts/some/rel/path/my_notebook.ipnb'
 
-def test_scripts_mix_docker_command(agave_task_file):
-    task = agave_task_file.tasks[0]
-    cmd, _, _ = task.get_docker_command()
-    # TODO
-    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/.agpy_cache:/root/.agpy_cache -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs:/agave/outputs -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input:/agave/inputs/input_id_1/0 -v /testsuite/cwd/on/host/test_suite_wf/global_inputs/input_2:/agave/inputs/input_id_1/1 -v /testsuite/cwd/on/host/test_suite_wf/add_5/agave/outputs/output_labels:/agave/outputs/output_labels  jstubbs/eod_job_submit python /eod_job_submit/submit.py app_id=add_n some_param_id=1 some_other_param_id=verbose '
+def test_scripts_mix_docker_command(scripts_mix_task_file):
+    script_task = scripts_mix_task_file.tasks[2]
+    cmd, _, _ = script_task.get_docker_command()
+    assert cmd == 'docker run --rm -v /testsuite/cwd/on/host/.agpy_cache:/root/.agpy_cache -v /some/abs/path/:/scripts/ -v /testsuite/cwd/on/host/test_suite_scripts_mix/step_3/scripts/some/rel/path/outputs:/scripts/some/rel/path/outputs -v /testsuite/cwd/on/host/test_suite_scripts_mix/step_2/data/output.txt:/scripts/some/rel/path/inputs/input_1 -v /testsuite/cwd/on/host/test_suite_scripts_mix/download_inputs.input/agave/outputs/1:/scripts/some/rel/path/inputs/input_2 -v /testsuite/cwd/on/host/test_suite_scripts_mix/download_step_1.sum/agave/outputs/1:/scripts/other/rel/path/sum  jstubbs/eod_exec_ipnb jupyter nbconvert --log-level=ERROR --ExecutePreprocessor.timeout=120 --execute --inplace --to notebook --output /scripts/some/rel/path/my_notebook.ipnb /scripts/some/rel/path/my_notebook.ipnb'
