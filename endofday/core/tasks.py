@@ -445,9 +445,6 @@ class BaseDockerTask(object):
         """
         result = []
         output_volumes = []
-        # if the child class set output volumes we will start with those
-        if hasattr(self, 'output_volumes'):
-            output_volumes = self.output_volumes
         for output in self.outputs:
             output_volumes.append(output.volume)
         output_volumes.sort(key= lambda vol:vol.container_path)
@@ -460,6 +457,13 @@ class BaseDockerTask(object):
                 head, tail = os.path.split(head)
             else:
                 result.append(volume)
+        # if the child class set output volumes we prepend those directly to the final
+        # result in the order they appear, and they are not processed by the sort/squash
+        # algorithm. this is so that child classes (such as ScriptTask) can add large
+        # output directories at the beginning.
+        if hasattr(self, 'output_volumes'):
+            for vol in self.output_volumes:
+                result.insert(0, vol)
         self.output_volume_mounts = result
 
     def get_docker_command(self, envs=None):
@@ -821,7 +825,14 @@ class ScriptTask(BaseDockerTask):
         # absolute path on the host to the script
         self.abs_host_script_path = os.path.join(self.parent_dir, self.script_path)
 
-        self.image = 'jstubbs/eod_exec_script'
+        # absolute container path to the script
+        self.container_script_path = os.path.join('/scripts/', self.script_path)
+
+        # image to run the script in
+        self.image = desc.get('image') or 'jstubbs/eod_exec_script'
+
+        # actual command to run
+        self.command = desc.get('command')
 
         self.audit()
 
@@ -851,14 +862,15 @@ class NotebookTask(ScriptTask):
 
         self.image = 'jstubbs/eod_exec_ipnb'
 
+        # actual command to run inside the docker container
         self.command = cmd = "jupyter nbconvert " + \
             "--log-level=ERROR " + \
             "--ExecutePreprocessor.timeout=120 " + \
             "--execute " + \
             "--inplace " + \
             "--to notebook " + \
-            "--output " + self.script_path + " " + \
-            self.script_path
+            "--output " + self.container_script_path + " " + \
+            self.container_script_path
 
 
 
