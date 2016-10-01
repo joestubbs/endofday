@@ -137,7 +137,7 @@ workflow definition file. For example, to run N2 on Agave we would update the ab
 
 
 To use either approach, you first need an Agave account and an API client. If you don't have those already you can
-get those here: http://preview.agaveapi.co/documentation/beginners-guides/
+get those here: http://developer.agaveapi.co/#guides
 
 Configuration
 -------------
